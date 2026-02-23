@@ -66,6 +66,38 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
 
   const averageRating = ratingCount > 0 ? Number((ratingSum / ratingCount).toFixed(2)) : 0;
 
+  const ratingYearMap = {};
+  ratingsRows.forEach((row) => {
+    const yearValue = row.Year || row.year || row["Year"];
+    const ratingValue = row.Rating || row.rating || row["Rating"];
+    const year = Number(yearValue);
+    const rating = parseFloat(ratingValue);
+
+    if (Number.isFinite(year) && Number.isFinite(rating)) {
+      const key = String(year);
+      if (!ratingYearMap[key]) {
+        ratingYearMap[key] = { sum: 0, count: 0 };
+      }
+      ratingYearMap[key].sum += rating;
+      ratingYearMap[key].count += 1;
+    }
+  });
+
+  const ratingYearKeys = Object.keys(ratingYearMap)
+    .map((year) => Number(year))
+    .filter((year) => Number.isFinite(year));
+  const minRatingYear = ratingYearKeys.length > 0 ? Math.min(...ratingYearKeys) : 0;
+  const maxRatingYear = ratingYearKeys.length > 0 ? Math.max(...ratingYearKeys) : 0;
+  const averageRatingByReleaseYear = [];
+
+  if (minRatingYear && maxRatingYear) {
+    for (let year = minRatingYear; year <= maxRatingYear; year += 1) {
+      const entry = ratingYearMap[String(year)];
+      const average = entry && entry.count > 0 ? Number((entry.sum / entry.count).toFixed(2)) : 0;
+      averageRatingByReleaseYear.push({ year: String(year), average });
+    }
+  }
+
   const yearCounter = {};
   watchedRows.forEach((row) => {
     const year = row.Year || row["Year"] || row["Year Released"] || row["Release Year"];
@@ -120,6 +152,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     ratingDistribution,
     topYears,
     moviesByReleaseYear,
+    averageRatingByReleaseYear,
     topTags,
     totalWatchlist,
     totalReviews,
