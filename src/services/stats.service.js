@@ -48,6 +48,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   };
 
   const totalMovies = watchedRows.length;
+  const totalLoggedMovies = diaryRows.length;
 
   let ratingSum = 0;
   let ratingCount = 0;
@@ -148,6 +149,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   return {
     profile,
     totalMovies,
+    totalLoggedMovies,
     averageRating,
     ratingDistribution,
     topYears,
