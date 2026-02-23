@@ -1,0 +1,31 @@
+{
+  "name": "letterboxd-stats-back",
+  "version": "1.0.0",
+  "description": "API en Node.js y Express para extraer, procesar y analizar archivos de exportación (CSV/ZIP) de Letterboxd. 🚀🎬",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build": "echo \"No build step\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JesusAraujoDEV/letterboxd-stats-back.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/JesusAraujoDEV/letterboxd-stats-back/issues"
+  },
+  "homepage": "https://github.com/JesusAraujoDEV/letterboxd-stats-back#readme",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "cors": "^2.8.6",
+    "csv-parser": "^3.2.0",
+    "express": "^5.2.1",
+    "multer": "^2.0.2"
+  }
+}
