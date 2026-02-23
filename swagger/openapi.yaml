@@ -1,0 +1,10 @@
+openapi: 3.0.3
+info:
+  title: Letterboxd Stats API
+  version: 1.0.0
+tags:
+  - name: Stats
+    description: Estadísticas de Letterboxd
+paths:
+  /api/upload-stats:
+    $ref: "./stats.yaml#/paths/~1api~1upload-stats"

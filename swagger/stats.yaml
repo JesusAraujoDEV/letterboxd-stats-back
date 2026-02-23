@@ -1,0 +1,85 @@
+paths:
+  /api/upload-stats:
+    post:
+      tags:
+        - Stats
+      summary: Sube ZIP de Letterboxd y devuelve estadísticas
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        "200":
+          description: Estadísticas calculadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalMovies:
+                    type: integer
+                    example: 232
+                  averageRating:
+                    type: number
+                    format: float
+                    example: 3.94
+                  ratingDistribution:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    example:
+                      "1": 2
+                      "2.5": 5
+                      "3": 15
+                      "4": 80
+                      "5": 130
+                  topYears:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        year:
+                          type: string
+                          example: "2025"
+                        count:
+                          type: integer
+                          example: 33
+                  topTags:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tag:
+                          type: string
+                          example: "netflix"
+                        count:
+                          type: integer
+                          example: 40
+        "400":
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Archivo requerido en el campo 'file'."
+        "500":
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Error interno del servidor."
