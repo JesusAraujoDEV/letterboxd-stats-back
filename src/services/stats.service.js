@@ -30,6 +30,9 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     watchlistRows,
     reviewsRows,
     commentsRows,
+    deletedDiaryRows,
+    deletedReviewsRows,
+    deletedCommentsRows,
   ] = await Promise.all([
     parseCsvBuffer(watchedBuffer),
     parseCsvBuffer(ratingsBuffer),
@@ -38,6 +41,9 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     safeParseCsv("watchlist.csv"),
     safeParseCsv("reviews.csv"),
     safeParseCsv("comments.csv"),
+    safeParseCsv("deleted/diary.csv"),
+    safeParseCsv("deleted/reviews.csv"),
+    safeParseCsv("deleted/comments.csv"),
   ]);
 
   const profileRow = profileRows[0] || {};
@@ -146,6 +152,23 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const totalReviews = reviewsRows.length;
   const totalComments = commentsRows.length;
 
+  const deletedDiaryCount = deletedDiaryRows.length;
+  const deletedReviewsCount = deletedReviewsRows.length;
+  const deletedCommentsCount = deletedCommentsRows.length;
+
+  const deletedListsEntries = zip
+    .getEntries()
+    .filter(
+      (entry) =>
+        entry.entryName.toLowerCase().startsWith("deleted/lists/") &&
+        entry.entryName.toLowerCase().endsWith(".csv"),
+    );
+  const deletedListsCount = deletedListsEntries.length;
+  const deletedListsNames = deletedListsEntries.map((entry) => {
+    const baseName = entry.entryName.split("/").pop() || "";
+    return baseName.replace(/\.csv$/i, "").replace(/-/g, " ").trim();
+  });
+
   return {
     profile,
     totalMovies,
@@ -159,6 +182,11 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     totalWatchlist,
     totalReviews,
     totalComments,
+    deletedDiaryCount,
+    deletedReviewsCount,
+    deletedCommentsCount,
+    deletedListsCount,
+    deletedListsNames,
   };
 };
 
