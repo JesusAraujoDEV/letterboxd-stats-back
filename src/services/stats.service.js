@@ -33,6 +33,9 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     deletedDiaryRows,
     deletedReviewsRows,
     deletedCommentsRows,
+    likedFilmsRows,
+    likedListsRows,
+    likedReviewsRows,
   ] = await Promise.all([
     parseCsvBuffer(watchedBuffer),
     parseCsvBuffer(ratingsBuffer),
@@ -44,6 +47,9 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     safeParseCsv("deleted/diary.csv"),
     safeParseCsv("deleted/reviews.csv"),
     safeParseCsv("deleted/comments.csv"),
+    safeParseCsv("likes/films.csv"),
+    safeParseCsv("likes/lists.csv"),
+    safeParseCsv("likes/reviews.csv"),
   ]);
 
   const profileRow = profileRows[0] || {};
@@ -169,6 +175,22 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     return baseName.replace(/\.csv$/i, "").replace(/-/g, " ").trim();
   });
 
+  const totalLikedFilms = likedFilmsRows.length;
+  const totalLikedLists = likedListsRows.length;
+  const totalLikedReviews = likedReviewsRows.length;
+
+  const likedYearCounter = {};
+  likedFilmsRows.forEach((row) => {
+    const year = row.Year || row.year || row["Year"];
+    if (year) {
+      const key = String(year).trim();
+      if (key) {
+        likedYearCounter[key] = (likedYearCounter[key] || 0) + 1;
+      }
+    }
+  });
+  const topLikedYears = toTopN(likedYearCounter, 3, "year");
+
   return {
     profile,
     totalMovies,
@@ -187,6 +209,10 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     deletedCommentsCount,
     deletedListsCount,
     deletedListsNames,
+    totalLikedFilms,
+    totalLikedLists,
+    totalLikedReviews,
+    topLikedYears,
   };
 };
 
