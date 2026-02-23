@@ -78,6 +78,9 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   });
 
   const topYears = toTopN(yearCounter, 5, "year");
+  const moviesByReleaseYear = Object.entries(yearCounter)
+    .map(([year, count]) => ({ year, count }))
+    .sort((a, b) => Number(a.year) - Number(b.year));
 
   const tagCounter = {};
   diaryRows.forEach((row) => {
@@ -106,6 +109,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     averageRating,
     ratingDistribution,
     topYears,
+    moviesByReleaseYear,
     topTags,
     totalWatchlist,
     totalReviews,
