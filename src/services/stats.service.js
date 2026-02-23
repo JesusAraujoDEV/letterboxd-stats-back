@@ -13,11 +13,39 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const ratingsBuffer = getZipEntryBuffer(zip, "ratings.csv");
   const diaryBuffer = getZipEntryBuffer(zip, "diary.csv");
 
-  const [watchedRows, ratingsRows, diaryRows] = await Promise.all([
+  const safeParseCsv = async (filename) => {
+    try {
+      const buffer = getZipEntryBuffer(zip, filename);
+      return await parseCsvBuffer(buffer);
+    } catch (err) {
+      return [];
+    }
+  };
+
+  const [
+    watchedRows,
+    ratingsRows,
+    diaryRows,
+    profileRows,
+    watchlistRows,
+    reviewsRows,
+    commentsRows,
+  ] = await Promise.all([
     parseCsvBuffer(watchedBuffer),
     parseCsvBuffer(ratingsBuffer),
     parseCsvBuffer(diaryBuffer),
+    safeParseCsv("profile.csv"),
+    safeParseCsv("watchlist.csv"),
+    safeParseCsv("reviews.csv"),
+    safeParseCsv("comments.csv"),
   ]);
+
+  const profileRow = profileRows[0] || {};
+  const profile = {
+    username: profileRow.Username || profileRow.username || "",
+    location: profileRow.Location || profileRow.location || "",
+    bio: profileRow.Bio || profileRow.bio || "",
+  };
 
   const totalMovies = watchedRows.length;
 
@@ -68,12 +96,20 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
 
   const topTags = toTopN(tagCounter, 5, "tag");
 
+  const totalWatchlist = watchlistRows.length;
+  const totalReviews = reviewsRows.length;
+  const totalComments = commentsRows.length;
+
   return {
+    profile,
     totalMovies,
     averageRating,
     ratingDistribution,
     topYears,
     topTags,
+    totalWatchlist,
+    totalReviews,
+    totalComments,
   };
 };
 
