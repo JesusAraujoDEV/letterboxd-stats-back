@@ -3,6 +3,7 @@ const cors = require("cors");
 const path = require("path");
 const YAML = require("yamljs");
 const swaggerUi = require("swagger-ui-express");
+const SwaggerParser = require("@apidevtools/swagger-parser");
 require("dotenv").config();
 const statsRoutes = require("./routes/stats.routes");
 
@@ -25,14 +26,21 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-const swaggerDocument = YAML.load(path.join(__dirname, "../swagger/openapi.yaml"));
-swaggerDocument.servers = [
-  {
-    url: process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`,
-  },
-];
+const swaggerPath = path.join(__dirname, "../swagger/openapi.yaml");
+const setupSwagger = async () => {
+  const swaggerDocument = await SwaggerParser.bundle(swaggerPath);
+  swaggerDocument.servers = [
+    {
+      url: process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`,
+    },
+  ];
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+};
+
+setupSwagger().catch((err) => {
+  console.error("Error inicializando Swagger:", err.message || err);
+});
 
 app.use("/api", statsRoutes);
 

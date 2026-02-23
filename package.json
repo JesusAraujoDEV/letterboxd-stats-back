@@ -22,12 +22,14 @@
   },
   "homepage": "https://github.com/JesusAraujoDEV/letterboxd-stats-back#readme",
   "dependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
     "adm-zip": "^0.5.16",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "multer": "^2.0.2",
+    "nodemon": "^3.1.14",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0"
   }
