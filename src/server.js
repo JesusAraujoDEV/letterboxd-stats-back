@@ -4,10 +4,10 @@ const statsRoutes = require("./routes/stats.routes");
 
 const app = express();
 
-const corsWhitelist = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-];
+const corsWhitelist = (process.env.FRONTEND_URLS || "")
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
