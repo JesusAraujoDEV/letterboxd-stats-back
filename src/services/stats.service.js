@@ -78,9 +78,19 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   });
 
   const topYears = toTopN(yearCounter, 5, "year");
-  const moviesByReleaseYear = Object.entries(yearCounter)
-    .map(([year, count]) => ({ year, count }))
-    .sort((a, b) => Number(a.year) - Number(b.year));
+  const yearKeys = Object.keys(yearCounter)
+    .map((year) => Number(year))
+    .filter((year) => Number.isFinite(year));
+  const minYear = yearKeys.length > 0 ? Math.min(...yearKeys) : 0;
+  const maxYear = yearKeys.length > 0 ? Math.max(...yearKeys) : 0;
+  const moviesByReleaseYear = [];
+
+  if (minYear && maxYear) {
+    for (let year = minYear; year <= maxYear; year += 1) {
+      const count = yearCounter[String(year)] || 0;
+      moviesByReleaseYear.push({ year: String(year), count });
+    }
+  }
 
   const tagCounter = {};
   diaryRows.forEach((row) => {
