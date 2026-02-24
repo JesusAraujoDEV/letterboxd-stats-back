@@ -9,7 +9,11 @@ const buildSearchUrl = (title, year) => {
 };
 
 const buildDetailsUrl = (movieId) => {
-  return `https://api.themoviedb.org/3/movie/${movieId}?language=en-US`;
+  const params = new URLSearchParams({
+    language: "en-US",
+    append_to_response: "credits",
+  });
+  return `https://api.themoviedb.org/3/movie/${movieId}?${params.toString()}`;
 };
 
 const fetchTmdbJson = async (url) => {
