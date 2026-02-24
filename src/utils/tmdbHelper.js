@@ -8,13 +8,15 @@ const buildSearchUrl = (title, year) => {
   return `https://api.themoviedb.org/3/search/movie?${params.toString()}`;
 };
 
-const fetchMoviePosterPath = async (title, year) => {
+const buildDetailsUrl = (movieId) => {
+  return `https://api.themoviedb.org/3/movie/${movieId}?language=en-US`;
+};
+
+const fetchTmdbJson = async (url) => {
   const token = process.env.TMDB_API_KEY;
-  if (!token || !title) {
+  if (!token) {
     return null;
   }
-
-  const url = buildSearchUrl(title, year);
 
   try {
     const response = await fetch(url, {
@@ -29,14 +31,38 @@ const fetchMoviePosterPath = async (title, year) => {
       return null;
     }
 
-    const payload = await response.json();
-    const posterPath = payload && payload.results && payload.results[0] && payload.results[0].poster_path;
-    return posterPath || null;
+    return await response.json();
   } catch (err) {
     return null;
   }
 };
 
+const fetchMovieSearchResult = async (title, year) => {
+  if (!title) {
+    return null;
+  }
+
+  const url = buildSearchUrl(title, year);
+  const payload = await fetchTmdbJson(url);
+  return payload && payload.results && payload.results[0] ? payload.results[0] : null;
+};
+
+const fetchMoviePosterPath = async (title, year) => {
+  const result = await fetchMovieSearchResult(title, year);
+  return result && result.poster_path ? result.poster_path : null;
+};
+
+const fetchMovieDetailsByTitleYear = async (title, year) => {
+  const result = await fetchMovieSearchResult(title, year);
+  if (!result || !result.id) {
+    return null;
+  }
+
+  const detailsUrl = buildDetailsUrl(result.id);
+  return await fetchTmdbJson(detailsUrl);
+};
+
 module.exports = {
   fetchMoviePosterPath,
+  fetchMovieDetailsByTitleYear,
 };

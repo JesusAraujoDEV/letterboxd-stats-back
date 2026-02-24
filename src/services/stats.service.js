@@ -1,6 +1,6 @@
 const AdmZip = require("adm-zip");
 const { parseCsvBuffer, getZipEntryBuffer, toTopN } = require("../utils/csvHelper");
-const { fetchMoviePosterPath } = require("../utils/tmdbHelper");
+const { fetchMoviePosterPath, fetchMovieDetailsByTitleYear } = require("../utils/tmdbHelper");
 
 const buildTopDecades = async (ratingsRows) => {
   const decadeMap = {};
@@ -82,6 +82,74 @@ const buildTopDecades = async (ratingsRows) => {
   }
 
   return topDecades;
+};
+
+const buildTopMetadataFromWatched = async (watchedRows) => {
+  const uniqueMovies = new Map();
+
+  watchedRows.forEach((row) => {
+    const title = row.Name || row.name || row.Title || row["Name"] || row["Title"];
+    if (!title) return;
+
+    const yearValue = row.Year || row.year || row["Year"] || row["Year Released"] || row["Release Year"];
+    const year = Number(yearValue);
+    const normalizedYear = Number.isFinite(year) ? String(year) : "";
+    const key = `${String(title).trim().toLowerCase()}::${normalizedYear}`;
+
+    if (!uniqueMovies.has(key)) {
+      uniqueMovies.set(key, { title: String(title).trim(), year: normalizedYear || null });
+    }
+  });
+
+  const movies = Array.from(uniqueMovies.values());
+  const genreCounter = {};
+  const countryCounter = {};
+  const languageCounter = {};
+  const batchSize = 25;
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  for (let i = 0; i < movies.length; i += batchSize) {
+    const batch = movies.slice(i, i + batchSize);
+    const detailsList = await Promise.all(
+      batch.map((movie) => fetchMovieDetailsByTitleYear(movie.title, movie.year)),
+    );
+
+    detailsList.forEach((details) => {
+      if (!details) return;
+
+      const genres = Array.isArray(details.genres) ? details.genres : [];
+      const countries = Array.isArray(details.production_countries)
+        ? details.production_countries
+        : [];
+      const languages = Array.isArray(details.spoken_languages) ? details.spoken_languages : [];
+
+      genres.forEach((genre) => {
+        const name = genre && genre.name ? String(genre.name).trim() : "";
+        if (name) genreCounter[name] = (genreCounter[name] || 0) + 1;
+      });
+
+      countries.forEach((country) => {
+        const name = country && country.name ? String(country.name).trim() : "";
+        if (name) countryCounter[name] = (countryCounter[name] || 0) + 1;
+      });
+
+      languages.forEach((language) => {
+        const rawName = language && (language.english_name || language.name);
+        const name = rawName ? String(rawName).trim() : "";
+        if (name) languageCounter[name] = (languageCounter[name] || 0) + 1;
+      });
+    });
+
+    if (i + batchSize < movies.length) {
+      await delay(200);
+    }
+  }
+
+  return {
+    topGenres: toTopN(genreCounter, 10, "name"),
+    topCountries: toTopN(countryCounter, 10, "name"),
+    topLanguages: toTopN(languageCounter, 10, "name"),
+  };
 };
 
 const buildStatsFromZipBuffer = async (zipBuffer) => {
@@ -275,6 +343,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const topLikedYears = toTopN(likedYearCounter, 3, "year");
 
   const topDecades = await buildTopDecades(ratingsRows);
+  const { topGenres, topCountries, topLanguages } = await buildTopMetadataFromWatched(watchedRows);
 
   return {
     profile,
@@ -299,6 +368,9 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     totalLikedReviews,
     topLikedYears,
     topDecades,
+    topGenres,
+    topCountries,
+    topLanguages,
   };
 };
 
