@@ -313,6 +313,33 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
 
   const topTags = toTopN(tagCounter, 5, "tag");
 
+  const rewatchCounts = {};
+  diaryRows.forEach((row) => {
+    const title = row.Name || row.name || row.Title || row["Name"] || row["Title"];
+    if (!title) return;
+
+    const key = String(title).trim();
+    if (!key) return;
+
+    if (!rewatchCounts[key]) {
+      rewatchCounts[key] = { title: key, count: 1 };
+    } else {
+      rewatchCounts[key].count += 1;
+    }
+  });
+
+  const mostRewatchedMoviesBase = Object.values(rewatchCounts)
+    .filter((entry) => entry.count > 1)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  const mostRewatchedMovies = await Promise.all(
+    mostRewatchedMoviesBase.map(async (movie) => ({
+      ...movie,
+      posterPath: await fetchMoviePosterPath(movie.title, null),
+    })),
+  );
+
   const totalWatchlist = watchlistRows.length;
   const totalReviews = reviewsRows.length;
   const totalComments = commentsRows.length;
@@ -365,6 +392,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     moviesByReleaseYear,
     averageRatingByReleaseYear,
     topTags,
+    mostRewatchedMovies,
     totalWatchlist,
     totalReviews,
     totalComments,
