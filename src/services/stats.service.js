@@ -105,7 +105,7 @@ const incrementPersonCounter = (counter, person) => {
   }
 };
 
-const buildTopMetadataFromWatched = async (watchedRows, detailsCache) => {
+const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSet, detailsCache) => {
   const uniqueMovies = new Map();
 
   watchedRows.forEach((row) => {
@@ -123,11 +123,23 @@ const buildTopMetadataFromWatched = async (watchedRows, detailsCache) => {
   });
 
   const movies = Array.from(uniqueMovies.values());
+  const diaryByTitle = {};
+  diaryRows.forEach((row) => {
+    const title = row.Name || row.name || row.Title || row["Name"] || row["Title"];
+    if (!title) return;
+    const key = String(title).trim();
+    if (!key) return;
+    if (!diaryByTitle[key]) {
+      diaryByTitle[key] = [];
+    }
+    diaryByTitle[key].push(row);
+  });
   const genreCounter = {};
   const countryCounter = {};
   const languageCounter = {};
   const actorsAllTime = {};
   const directorsAllTime = {};
+  const allMovies = [];
   const batchSize = 25;
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -147,8 +159,51 @@ const buildTopMetadataFromWatched = async (watchedRows, detailsCache) => {
       }),
     );
 
-    detailsList.forEach((details) => {
+    detailsList.forEach((details, index) => {
+      const movie = batch[index];
       if (!details) return;
+
+      const movieTitle = movie && movie.title ? String(movie.title).trim() : "";
+      const movieYearValue = movie && movie.year ? Number(movie.year) : NaN;
+      const decade = Number.isFinite(movieYearValue)
+        ? `${Math.floor(movieYearValue / 10) * 10}s`
+        : null;
+      const diaryLogs = movieTitle ? diaryByTitle[movieTitle] || [] : [];
+
+      const movieObj = {
+        title: movieTitle,
+        releaseYear: Number.isFinite(movieYearValue) ? movieYearValue : null,
+        decade,
+        posterPath: details.poster_path || null,
+        liked: movieTitle ? likedTitlesSet.has(movieTitle) : false,
+        genres: Array.isArray(details.genres) ? details.genres.map((g) => g.name).filter(Boolean) : [],
+        countries: Array.isArray(details.production_countries)
+          ? details.production_countries.map((c) => c.name).filter(Boolean)
+          : [],
+        languages: Array.isArray(details.spoken_languages)
+          ? details.spoken_languages.map((l) => l.english_name || l.name).filter(Boolean)
+          : [],
+        directors: Array.isArray(details.credits && details.credits.crew)
+          ? details.credits.crew
+              .filter((c) => c && c.job === "Director" && c.name)
+              .map((d) => d.name)
+          : [],
+        cast: Array.isArray(details.credits && details.credits.cast)
+          ? details.credits.cast
+              .slice(0, 10)
+              .filter((c) => c && c.name)
+              .map((c) => c.name)
+          : [],
+        diaryLogs: diaryLogs.map((entry) => ({
+          rating: entry.Rating ? parseFloat(entry.Rating) : null,
+          watchedDate: entry["Watched Date"],
+          watchedYear: entry["Watched Date"] ? String(entry["Watched Date"]).substring(0, 4) : null,
+          tags: entry.Tags ? String(entry.Tags).split(",").map((t) => t.trim()) : [],
+        })),
+        rewatchCount: diaryLogs.length,
+      };
+
+      allMovies.push(movieObj);
 
       const genres = Array.isArray(details.genres) ? details.genres : [];
       const countries = Array.isArray(details.production_countries)
@@ -211,6 +266,7 @@ const buildTopMetadataFromWatched = async (watchedRows, detailsCache) => {
     allCountries,
     topActorsAllTime,
     topDirectorsAllTime,
+    allMovies,
   };
 };
 
@@ -500,7 +556,15 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const totalLikedReviews = likedReviewsRows.length;
 
   const likedYearCounter = {};
+  const likedTitlesSet = new Set();
   likedFilmsRows.forEach((row) => {
+    const likedTitle = row.Name || row.name || row.Title || row["Name"] || row["Title"];
+    if (likedTitle) {
+      const key = String(likedTitle).trim();
+      if (key) {
+        likedTitlesSet.add(key);
+      }
+    }
     const year = row.Year || row.year || row["Year"];
     if (year) {
       const key = String(year).trim();
@@ -520,8 +584,11 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     allCountries,
     topActorsAllTime,
     topDirectorsAllTime,
+    allMovies,
   } = await buildTopMetadataFromWatched(
     watchedRows,
+    diaryRows,
+    likedTitlesSet,
     tmdbDetailsCache,
   );
   const { topActorsLogged, topDirectorsLogged } = await buildTopCreditsFromDiary(
@@ -563,6 +630,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     topDirectorsAllTime,
     topDirectorsLogged,
     totalHoursWatched,
+    allMovies,
   };
 };
 
