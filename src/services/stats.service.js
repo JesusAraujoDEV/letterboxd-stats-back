@@ -128,16 +128,19 @@ const buildTopMetadataFromWatched = async (watchedRows) => {
         if (name) genreCounter[name] = (genreCounter[name] || 0) + 1;
       });
 
-      countries.forEach((country) => {
-        const name = country && country.name ? String(country.name).trim() : "";
+      const primaryCountry = countries[0];
+      const primaryCountryName = primaryCountry && (primaryCountry.name || primaryCountry.iso_3166_1);
+      if (primaryCountryName) {
+        const name = String(primaryCountryName).trim();
         if (name) countryCounter[name] = (countryCounter[name] || 0) + 1;
-      });
+      }
 
-      languages.forEach((language) => {
-        const rawName = language && (language.english_name || language.name);
-        const name = rawName ? String(rawName).trim() : "";
+      const primaryLanguage = languages[0];
+      const primaryLanguageName = primaryLanguage && (primaryLanguage.english_name || primaryLanguage.name);
+      if (primaryLanguageName) {
+        const name = String(primaryLanguageName).trim();
         if (name) languageCounter[name] = (languageCounter[name] || 0) + 1;
-      });
+      }
     });
 
     if (i + batchSize < movies.length) {
@@ -145,10 +148,15 @@ const buildTopMetadataFromWatched = async (watchedRows) => {
     }
   }
 
+  const allCountries = Object.entries(countryCounter)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count }));
+
   return {
     topGenres: toTopN(genreCounter, 10, "name"),
     topCountries: toTopN(countryCounter, 10, "name"),
     topLanguages: toTopN(languageCounter, 10, "name"),
+    allCountries,
   };
 };
 
@@ -343,7 +351,9 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const topLikedYears = toTopN(likedYearCounter, 3, "year");
 
   const topDecades = await buildTopDecades(ratingsRows);
-  const { topGenres, topCountries, topLanguages } = await buildTopMetadataFromWatched(watchedRows);
+  const { topGenres, topCountries, topLanguages, allCountries } = await buildTopMetadataFromWatched(
+    watchedRows,
+  );
 
   return {
     profile,
@@ -371,6 +381,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     topGenres,
     topCountries,
     topLanguages,
+    allCountries,
   };
 };
 
