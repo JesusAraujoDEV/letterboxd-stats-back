@@ -1,5 +1,88 @@
 const AdmZip = require("adm-zip");
 const { parseCsvBuffer, getZipEntryBuffer, toTopN } = require("../utils/csvHelper");
+const { fetchMoviePosterPath } = require("../utils/tmdbHelper");
+
+const buildTopDecades = async (ratingsRows) => {
+  const decadeMap = {};
+
+  ratingsRows.forEach((row) => {
+    const title = row.Name || row.name || row.Title || row["Name"] || row["Title"];
+    const yearValue = row.Year || row.year || row["Year"];
+    const ratingValue = row.Rating || row.rating || row["Rating"];
+    const ratedDate = row.Date || row.date || row["Date"] || null;
+
+    const year = Number(yearValue);
+    const rating = parseFloat(ratingValue);
+
+    if (!title || !Number.isFinite(year) || !Number.isFinite(rating)) {
+      return;
+    }
+
+    const decade = Math.floor(year / 10) * 10;
+    const key = String(decade);
+
+    if (!decadeMap[key]) {
+      decadeMap[key] = { sum: 0, count: 0, movies: [] };
+    }
+
+    decadeMap[key].sum += rating;
+    decadeMap[key].count += 1;
+    decadeMap[key].movies.push({
+      title: String(title).trim(),
+      year: String(year),
+      userRating: rating,
+      ratedDate: ratedDate ? String(ratedDate).trim() : null,
+    });
+  });
+
+  const decadeAverages = Object.entries(decadeMap)
+    .map(([decade, data]) => ({
+      decade: Number(decade),
+      average: data.count > 0 ? Number((data.sum / data.count).toFixed(2)) : 0,
+      movies: data.movies,
+    }))
+    .sort((a, b) => b.average - a.average)
+    .slice(0, 3);
+
+  const sortMovies = (a, b) => {
+    if (b.userRating !== a.userRating) return b.userRating - a.userRating;
+    if (a.ratedDate && b.ratedDate && a.ratedDate !== b.ratedDate) {
+      return b.ratedDate.localeCompare(a.ratedDate);
+    }
+    return (a.title || "").localeCompare(b.title || "");
+  };
+
+  const enrichWithPosterPaths = async (movies) => {
+    const batchSize = 5;
+    const enriched = movies.map((movie) => ({ ...movie, posterPath: null }));
+
+    for (let i = 0; i < enriched.length; i += batchSize) {
+      const batch = enriched.slice(i, i + batchSize);
+      const posterPaths = await Promise.all(
+        batch.map((movie) => fetchMoviePosterPath(movie.title, movie.year)),
+      );
+
+      posterPaths.forEach((posterPath, index) => {
+        batch[index].posterPath = posterPath || null;
+      });
+    }
+
+    return enriched;
+  };
+
+  const topDecades = [];
+  for (const entry of decadeAverages) {
+    const topMovies = entry.movies.sort(sortMovies).slice(0, 8);
+    const topMoviesWithPosters = await enrichWithPosterPaths(topMovies);
+    topDecades.push({
+      decade: `${entry.decade}s`,
+      average: entry.average,
+      topMovies: topMoviesWithPosters,
+    });
+  }
+
+  return topDecades;
+};
 
 const buildStatsFromZipBuffer = async (zipBuffer) => {
   let zip;
@@ -191,6 +274,8 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   });
   const topLikedYears = toTopN(likedYearCounter, 3, "year");
 
+  const topDecades = await buildTopDecades(ratingsRows);
+
   return {
     profile,
     totalMovies,
@@ -213,6 +298,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     totalLikedLists,
     totalLikedReviews,
     topLikedYears,
+    topDecades,
   };
 };
 
