@@ -923,6 +923,59 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const totalMovies = watchedRows.length;
   const totalLoggedMovies = diaryRows.length;
 
+  const getISOWeekNumber = (date) => {
+    const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const dayNum = utcDate.getUTCDay() || 7;
+    utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+    const diffDays = Math.floor((utcDate - yearStart) / 86400000) + 1;
+    return Math.ceil(diffDays / 7);
+  };
+
+  const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  const activityByYear = {};
+  const availableYearsSet = new Set();
+
+  const initActivityYear = (year) => {
+    if (activityByYear[year]) return;
+    activityByYear[year] = {
+      days: daysOfWeek.map((day) => ({ day, count: 0 })),
+      weeks: Array.from({ length: 52 }, (_, index) => ({ week: index + 1, count: 0 })),
+    };
+  };
+
+  diaryRows.forEach((row) => {
+    const watchedDateValue = row["Watched Date"] || row["WatchedDate"] || row.watchedDate || null;
+    if (!watchedDateValue) return;
+
+    const dateString = String(watchedDateValue).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return;
+
+    const parsedDate = new Date(`${dateString}T00:00:00Z`);
+    if (Number.isNaN(parsedDate.getTime())) return;
+
+    const year = dateString.substring(0, 4);
+    initActivityYear(year);
+    availableYearsSet.add(year);
+
+    const dayIndex = (parsedDate.getUTCDay() + 6) % 7;
+    activityByYear[year].days[dayIndex].count += 1;
+
+    const weekNumber = getISOWeekNumber(parsedDate);
+    while (activityByYear[year].weeks.length < weekNumber) {
+      activityByYear[year].weeks.push({ week: activityByYear[year].weeks.length + 1, count: 0 });
+    }
+    if (weekNumber >= 1) {
+      activityByYear[year].weeks[weekNumber - 1].count += 1;
+    }
+  });
+
+  const availableYears = Array.from(availableYearsSet).sort((a, b) => b.localeCompare(a));
+  const activityStats = {
+    availableYears,
+    byYear: activityByYear,
+  };
+
   let ratingSum = 0;
   let ratingCount = 0;
   const ratingDistribution = {};
@@ -1140,6 +1193,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     topDirectorsAllTime,
     topDirectorsLogged,
     totalHoursWatched,
+    activityStats,
     allMovies,
   };
 };
