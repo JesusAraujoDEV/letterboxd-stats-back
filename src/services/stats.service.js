@@ -581,8 +581,6 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
   const genreCounter = {};
   const countryCounter = {};
   const languageCounter = {};
-  const actorsAllTime = {};
-  const directorsAllTime = {};
   const allMovies = [];
   const batchSize = 25;
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -654,8 +652,6 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
 
       const genres = Array.isArray(details.genres) ? details.genres : [];
       const credits = details.credits || {};
-      const cast = Array.isArray(credits.cast) ? credits.cast : [];
-      const crew = Array.isArray(credits.crew) ? credits.crew : [];
 
       genres.forEach((genre) => {
         const name = genre && genre.name ? String(genre.name).trim() : "";
@@ -672,13 +668,6 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
         if (name) languageCounter[name] = (languageCounter[name] || 0) + 1;
       }
 
-      crew
-        .filter((member) => member && member.job === "Director")
-        .forEach((member) => incrementPersonCounter(directorsAllTime, member, movieTitle));
-
-      cast
-        .slice(0, 5)
-        .forEach((member) => incrementPersonCounter(actorsAllTime, member, movieTitle));
     });
 
     if (i + batchSize < movies.length) {
@@ -690,21 +679,81 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({ name, count }));
 
+  const actorsAllTime = {};
+  const directorsAllTime = {};
+  const actorsLogged = {};
+  const directorsLogged = {};
+
+  const incrementByMovie = (counter, name, profilePath) => {
+    const safeName = name ? String(name).trim() : "";
+    if (!safeName) return;
+
+    if (!counter[safeName]) {
+      counter[safeName] = { name: safeName, count: 1, profilePath: profilePath || null };
+      return;
+    }
+
+    counter[safeName].count += 1;
+    if (!counter[safeName].profilePath && profilePath) {
+      counter[safeName].profilePath = profilePath;
+    }
+  };
+
+  allMovies.forEach((movie) => {
+    const movieTitle = movie && movie.title ? String(movie.title).trim() : "";
+    const movieYear = movie && Number.isFinite(movie.releaseYear) ? String(movie.releaseYear) : "";
+    const cacheKey = movieTitle ? buildCacheKey(movieTitle, movieYear) : "";
+    const cachedDetails = cacheKey && detailsCache ? detailsCache[cacheKey] : null;
+    const cachedCredits = cachedDetails && cachedDetails.credits ? cachedDetails.credits : {};
+    const cachedCast = Array.isArray(cachedCredits.cast) ? cachedCredits.cast : [];
+    const cachedCrew = Array.isArray(cachedCredits.crew) ? cachedCredits.crew : [];
+
+    const castProfileByName = new Map(
+      cachedCast
+        .filter((member) => member && member.name)
+        .map((member) => [member.name, member.profile_path || null]),
+    );
+    const directorProfileByName = new Map(
+      cachedCrew
+        .filter((member) => member && member.job === "Director" && member.name)
+        .map((member) => [member.name, member.profile_path || null]),
+    );
+
+    const uniqueCast = new Set(Array.isArray(movie.cast) ? movie.cast.filter(Boolean) : []);
+    const uniqueDirectors = new Set(
+      Array.isArray(movie.directors) ? movie.directors.filter(Boolean) : [],
+    );
+
+    uniqueCast.forEach((name) => {
+      incrementByMovie(actorsAllTime, name, castProfileByName.get(name));
+    });
+    uniqueDirectors.forEach((name) => {
+      incrementByMovie(directorsAllTime, name, directorProfileByName.get(name));
+    });
+
+    if (movie && Array.isArray(movie.diaryLogs) && movie.diaryLogs.length > 0) {
+      uniqueCast.forEach((name) => {
+        incrementByMovie(actorsLogged, name, castProfileByName.get(name));
+      });
+      uniqueDirectors.forEach((name) => {
+        incrementByMovie(directorsLogged, name, directorProfileByName.get(name));
+      });
+    }
+  });
+
   const topActorsAllTime = Object.values(actorsAllTime)
-    .map((entry) => ({
-      name: entry.name,
-      count: entry.titles.size,
-      profilePath: entry.profilePath || null,
-    }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
   const topDirectorsAllTime = Object.values(directorsAllTime)
-    .map((entry) => ({
-      name: entry.name,
-      count: entry.titles.size,
-      profilePath: entry.profilePath || null,
-    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const topActorsLogged = Object.values(actorsLogged)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const topDirectorsLogged = Object.values(directorsLogged)
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
@@ -714,7 +763,9 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
     topLanguages: toTopN(languageCounter, 10, "name"),
     allCountries,
     topActorsAllTime,
+    topActorsLogged,
     topDirectorsAllTime,
+    topDirectorsLogged,
     allMovies,
   };
 };
@@ -1044,16 +1095,14 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     topLanguages,
     allCountries,
     topActorsAllTime,
+    topActorsLogged,
     topDirectorsAllTime,
+    topDirectorsLogged,
     allMovies,
   } = await buildTopMetadataFromWatched(
     watchedRows,
     diaryRows,
     likedTitlesSet,
-    tmdbDetailsCache,
-  );
-  const { topActorsLogged, topDirectorsLogged } = await buildTopCreditsFromDiary(
-    diaryRows,
     tmdbDetailsCache,
   );
   const totalHoursWatched = await buildTotalHoursWatched(diaryRows, tmdbDetailsCache);
