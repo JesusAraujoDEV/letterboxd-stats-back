@@ -85,6 +85,20 @@ const buildTopDecades = async (ratingsRows) => {
 };
 
 const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const monthsOfYear = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 
 const getISOWeekNumber = (date) => {
   const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -103,11 +117,14 @@ const parseWatchedDate = (value) => {
   if (Number.isNaN(parsedDate.getTime())) return null;
 
   const dayIndex = (parsedDate.getUTCDay() + 6) % 7;
+  const monthIndex = parsedDate.getUTCMonth();
   return {
     dateString,
     year: dateString.substring(0, 4),
     watchedDay: daysOfWeek[dayIndex],
     watchedWeek: getISOWeekNumber(parsedDate),
+    watchedMonth: monthsOfYear[monthIndex],
+    watchedMonthIndex: monthIndex,
   };
 };
 
@@ -675,6 +692,7 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
             watchedYear: watchedMeta ? watchedMeta.year : null,
             watchedDay: watchedMeta ? watchedMeta.watchedDay : null,
             watchedWeek: watchedMeta ? watchedMeta.watchedWeek : null,
+            watchedMonth: watchedMeta ? watchedMeta.watchedMonth : null,
             tags: entry.Tags ? String(entry.Tags).split(",").map((t) => t.trim()) : [],
           };
         }),
@@ -964,8 +982,17 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     activityByYear[year] = {
       days: daysOfWeek.map((day) => ({ day, count: 0 })),
       weeks: Array.from({ length: 52 }, (_, index) => ({ week: index + 1, count: 0 })),
+      months: monthsOfYear.map((month) => ({ month, count: 0 })),
     };
   };
+
+  const activityTotal = {
+    days: daysOfWeek.map((day) => ({ day, count: 0 })),
+    weeks: Array.from({ length: 52 }, (_, index) => ({ week: index + 1, count: 0 })),
+    months: monthsOfYear.map((month) => ({ month, count: 0 })),
+  };
+
+  activityByYear.Total = activityTotal;
 
   diaryRows.forEach((row) => {
     const watchedMeta = parseWatchedDate(
@@ -980,6 +1007,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     const dayIndex = daysOfWeek.indexOf(watchedMeta.watchedDay);
     if (dayIndex >= 0) {
       activityByYear[year].days[dayIndex].count += 1;
+      activityByYear.Total.days[dayIndex].count += 1;
     }
 
     const weekNumber = watchedMeta.watchedWeek;
@@ -988,28 +1016,23 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     }
     if (weekNumber >= 1) {
       activityByYear[year].weeks[weekNumber - 1].count += 1;
+      while (activityByYear.Total.weeks.length < weekNumber) {
+        activityByYear.Total.weeks.push({
+          week: activityByYear.Total.weeks.length + 1,
+          count: 0,
+        });
+      }
+      activityByYear.Total.weeks[weekNumber - 1].count += 1;
+    }
+
+    const monthIndex = Number.isFinite(watchedMeta.watchedMonthIndex)
+      ? watchedMeta.watchedMonthIndex
+      : -1;
+    if (monthIndex >= 0 && monthIndex < activityByYear[year].months.length) {
+      activityByYear[year].months[monthIndex].count += 1;
+      activityByYear.Total.months[monthIndex].count += 1;
     }
   });
-
-  const activityTotal = {
-    days: daysOfWeek.map((day) => ({ day, count: 0 })),
-    weeks: Array.from({ length: 52 }, (_, index) => ({ week: index + 1, count: 0 })),
-  };
-
-  Object.keys(activityByYear).forEach((year) => {
-    const yearData = activityByYear[year];
-    yearData.days.forEach((entry, index) => {
-      activityTotal.days[index].count += entry.count;
-    });
-    yearData.weeks.forEach((entry, index) => {
-      if (!activityTotal.weeks[index]) {
-        activityTotal.weeks[index] = { week: index + 1, count: 0 };
-      }
-      activityTotal.weeks[index].count += entry.count;
-    });
-  });
-
-  activityByYear.Total = activityTotal;
 
   const availableYears = [
     "Total",
