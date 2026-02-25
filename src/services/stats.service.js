@@ -84,6 +84,33 @@ const buildTopDecades = async (ratingsRows) => {
   return topDecades;
 };
 
+const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+const getISOWeekNumber = (date) => {
+  const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const diffDays = Math.floor((utcDate - yearStart) / 86400000) + 1;
+  return Math.ceil(diffDays / 7);
+};
+
+const parseWatchedDate = (value) => {
+  if (!value) return null;
+  const dateString = String(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return null;
+  const parsedDate = new Date(`${dateString}T00:00:00Z`);
+  if (Number.isNaN(parsedDate.getTime())) return null;
+
+  const dayIndex = (parsedDate.getUTCDay() + 6) % 7;
+  return {
+    dateString,
+    year: dateString.substring(0, 4),
+    watchedDay: daysOfWeek[dayIndex],
+    watchedWeek: getISOWeekNumber(parsedDate),
+  };
+};
+
 const languageCodeMap = {
   ab: "Abkhazian",
   aa: "Afar",
@@ -114,6 +141,7 @@ const languageCodeMap = {
   ce: "Chechen",
   ny: "Chichewa",
   zh: "Chinese",
+  cn: "Cantonese",
   cu: "Church Slavonic",
   cv: "Chuvash",
   kw: "Cornish",
@@ -639,12 +667,17 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
               .filter((c) => c && c.name)
               .map((c) => c.name)
           : [],
-        diaryLogs: diaryLogs.map((entry) => ({
-          rating: entry.Rating ? parseFloat(entry.Rating) : null,
-          watchedDate: entry["Watched Date"],
-          watchedYear: entry["Watched Date"] ? String(entry["Watched Date"]).substring(0, 4) : null,
-          tags: entry.Tags ? String(entry.Tags).split(",").map((t) => t.trim()) : [],
-        })),
+        diaryLogs: diaryLogs.map((entry) => {
+          const watchedMeta = parseWatchedDate(entry["Watched Date"]);
+          return {
+            rating: entry.Rating ? parseFloat(entry.Rating) : null,
+            watchedDate: entry["Watched Date"],
+            watchedYear: watchedMeta ? watchedMeta.year : null,
+            watchedDay: watchedMeta ? watchedMeta.watchedDay : null,
+            watchedWeek: watchedMeta ? watchedMeta.watchedWeek : null,
+            tags: entry.Tags ? String(entry.Tags).split(",").map((t) => t.trim()) : [],
+          };
+        }),
         rewatchCount: diaryLogs.length,
       };
 
@@ -923,16 +956,6 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const totalMovies = watchedRows.length;
   const totalLoggedMovies = diaryRows.length;
 
-  const getISOWeekNumber = (date) => {
-    const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-    const dayNum = utcDate.getUTCDay() || 7;
-    utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
-    const diffDays = Math.floor((utcDate - yearStart) / 86400000) + 1;
-    return Math.ceil(diffDays / 7);
-  };
-
-  const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
   const activityByYear = {};
   const availableYearsSet = new Set();
 
@@ -945,23 +968,21 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   };
 
   diaryRows.forEach((row) => {
-    const watchedDateValue = row["Watched Date"] || row["WatchedDate"] || row.watchedDate || null;
-    if (!watchedDateValue) return;
+    const watchedMeta = parseWatchedDate(
+      row["Watched Date"] || row["WatchedDate"] || row.watchedDate || null,
+    );
+    if (!watchedMeta) return;
 
-    const dateString = String(watchedDateValue).trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return;
-
-    const parsedDate = new Date(`${dateString}T00:00:00Z`);
-    if (Number.isNaN(parsedDate.getTime())) return;
-
-    const year = dateString.substring(0, 4);
+    const year = watchedMeta.year;
     initActivityYear(year);
     availableYearsSet.add(year);
 
-    const dayIndex = (parsedDate.getUTCDay() + 6) % 7;
-    activityByYear[year].days[dayIndex].count += 1;
+    const dayIndex = daysOfWeek.indexOf(watchedMeta.watchedDay);
+    if (dayIndex >= 0) {
+      activityByYear[year].days[dayIndex].count += 1;
+    }
 
-    const weekNumber = getISOWeekNumber(parsedDate);
+    const weekNumber = watchedMeta.watchedWeek;
     while (activityByYear[year].weeks.length < weekNumber) {
       activityByYear[year].weeks.push({ week: activityByYear[year].weeks.length + 1, count: 0 });
     }
@@ -970,7 +991,30 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     }
   });
 
-  const availableYears = Array.from(availableYearsSet).sort((a, b) => b.localeCompare(a));
+  const activityTotal = {
+    days: daysOfWeek.map((day) => ({ day, count: 0 })),
+    weeks: Array.from({ length: 52 }, (_, index) => ({ week: index + 1, count: 0 })),
+  };
+
+  Object.keys(activityByYear).forEach((year) => {
+    const yearData = activityByYear[year];
+    yearData.days.forEach((entry, index) => {
+      activityTotal.days[index].count += entry.count;
+    });
+    yearData.weeks.forEach((entry, index) => {
+      if (!activityTotal.weeks[index]) {
+        activityTotal.weeks[index] = { week: index + 1, count: 0 };
+      }
+      activityTotal.weeks[index].count += entry.count;
+    });
+  });
+
+  activityByYear.Total = activityTotal;
+
+  const availableYears = [
+    "Total",
+    ...Array.from(availableYearsSet).sort((a, b) => b.localeCompare(a)),
+  ];
   const activityStats = {
     availableYears,
     byYear: activityByYear,
