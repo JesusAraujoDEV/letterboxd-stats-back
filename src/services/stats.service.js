@@ -90,15 +90,16 @@ const buildCacheKey = (title, year) => {
   return `${safeTitle}::${safeYear}`;
 };
 
-const incrementPersonCounter = (counter, person) => {
+const incrementPersonCounter = (counter, person, movieTitle) => {
   if (!person || !person.name) return;
   const name = String(person.name).trim();
-  if (!name) return;
+  const safeTitle = movieTitle ? String(movieTitle).trim() : "";
+  if (!name || !safeTitle) return;
 
   if (!counter[name]) {
-    counter[name] = { name, count: 1, profilePath: person.profile_path || null };
+    counter[name] = { name, titles: new Set([safeTitle]), profilePath: person.profile_path || null };
   } else {
-    counter[name].count += 1;
+    counter[name].titles.add(safeTitle);
     if (!counter[name].profilePath && person.profile_path) {
       counter[name].profilePath = person.profile_path;
     }
@@ -235,11 +236,11 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
 
       crew
         .filter((member) => member && member.job === "Director")
-        .forEach((member) => incrementPersonCounter(directorsAllTime, member));
+        .forEach((member) => incrementPersonCounter(directorsAllTime, member, movieTitle));
 
       cast
         .slice(0, 5)
-        .forEach((member) => incrementPersonCounter(actorsAllTime, member));
+        .forEach((member) => incrementPersonCounter(actorsAllTime, member, movieTitle));
     });
 
     if (i + batchSize < movies.length) {
@@ -252,10 +253,20 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
     .map(([name, count]) => ({ name, count }));
 
   const topActorsAllTime = Object.values(actorsAllTime)
+    .map((entry) => ({
+      name: entry.name,
+      count: entry.titles.size,
+      profilePath: entry.profilePath || null,
+    }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
   const topDirectorsAllTime = Object.values(directorsAllTime)
+    .map((entry) => ({
+      name: entry.name,
+      count: entry.titles.size,
+      profilePath: entry.profilePath || null,
+    }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
@@ -296,20 +307,32 @@ const buildTopCreditsFromDiary = async (diaryRows, detailsCache) => {
     const cast = Array.isArray(details.credits.cast) ? details.credits.cast : [];
     const crew = Array.isArray(details.credits.crew) ? details.credits.crew : [];
 
+    const safeTitle = String(title).trim();
+
     crew
       .filter((member) => member && member.job === "Director")
-      .forEach((member) => incrementPersonCounter(directorsLogged, member));
+      .forEach((member) => incrementPersonCounter(directorsLogged, member, safeTitle));
 
     cast
       .slice(0, 5)
-      .forEach((member) => incrementPersonCounter(actorsLogged, member));
+      .forEach((member) => incrementPersonCounter(actorsLogged, member, safeTitle));
   }
 
   return {
     topActorsLogged: Object.values(actorsLogged)
+      .map((entry) => ({
+        name: entry.name,
+        count: entry.titles.size,
+        profilePath: entry.profilePath || null,
+      }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10),
     topDirectorsLogged: Object.values(directorsLogged)
+      .map((entry) => ({
+        name: entry.name,
+        count: entry.titles.size,
+        profilePath: entry.profilePath || null,
+      }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10),
   };
