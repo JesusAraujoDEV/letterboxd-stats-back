@@ -1043,6 +1043,42 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     byYear: activityByYear,
   };
 
+  const watchedYearMap = {};
+
+  diaryRows.forEach((row) => {
+    const watchedDateValue =
+      row["Watched Date"] || row["WatchedDate"] || row.watchedDate || row.date || null;
+    if (!watchedDateValue) return;
+
+    const watchedDateString = String(watchedDateValue).trim();
+    if (watchedDateString.length < 4) return;
+
+    const year = watchedDateString.substring(0, 4);
+    if (!/^[0-9]{4}$/.test(year)) return;
+
+    if (!watchedYearMap[year]) {
+      watchedYearMap[year] = { year, count: 0, ratingSum: 0, ratingCount: 0 };
+    }
+
+    watchedYearMap[year].count += 1;
+
+    const ratingValue = row.Rating || row.rating || row["Rating"] || null;
+    const rating = parseFloat(ratingValue);
+    if (Number.isFinite(rating)) {
+      watchedYearMap[year].ratingSum += rating;
+      watchedYearMap[year].ratingCount += 1;
+    }
+  });
+
+  const watchedYearStats = Object.values(watchedYearMap)
+    .map((entry) => ({
+      year: entry.year,
+      count: entry.count,
+      averageRating:
+        entry.ratingCount > 0 ? Number((entry.ratingSum / entry.ratingCount).toFixed(2)) : 0,
+    }))
+    .sort((a, b) => a.year.localeCompare(b.year));
+
   let ratingSum = 0;
   let ratingCount = 0;
   const ratingDistribution = {};
@@ -1261,6 +1297,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     topDirectorsLogged,
     totalHoursWatched,
     activityStats,
+    watchedYearStats,
     allMovies,
   };
 };
