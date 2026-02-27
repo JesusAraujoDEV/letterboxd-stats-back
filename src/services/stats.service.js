@@ -577,6 +577,18 @@ const buildCacheKey = (title, year) => {
   return `${safeTitle}::${safeYear}`;
 };
 
+const getUsernameFromShortLink = async (shortUrl) => {
+  try {
+    const response = await fetch(shortUrl, { method: "HEAD", redirect: "follow" });
+    const finalUrl = new URL(response.url);
+    const pathParts = finalUrl.pathname.split("/").filter(Boolean);
+    return pathParts[0] || "unknown";
+  } catch (error) {
+    console.error(`Error resolviendo ${shortUrl}:`, error.message);
+    return "unknown";
+  }
+};
+
 const incrementPersonCounter = (counter, person, movieTitle) => {
   if (!person || !person.name) return;
   const name = String(person.name).trim();
@@ -970,6 +982,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     location: profileRow.Location || profileRow.location || "",
     bio: profileRow.Bio || profileRow.bio || "",
   };
+  const normalizedMainUsername = profile.username ? String(profile.username).trim().toLowerCase() : "";
 
   const totalMovies = watchedRows.length;
   const totalLoggedMovies = diaryRows.length;
@@ -1202,6 +1215,39 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const totalReviews = reviewsRows.length;
   const totalComments = commentsRows.length;
 
+  const interactionsMap = new Map();
+  for (const row of commentsRows) {
+    const shortLink = row.Content || row.content || row["Content"] || null;
+    const commentText = row.Comment || row.comment || row["Comment"] || "";
+    const date = row.Date || row.date || row["Date"] || null;
+
+    if (!shortLink || !String(shortLink).includes("boxd.it")) {
+      continue;
+    }
+
+    const username = await getUsernameFromShortLink(String(shortLink).trim());
+    const normalizedUsername = username ? String(username).trim().toLowerCase() : "";
+    if (username === "unknown" || (normalizedMainUsername && normalizedUsername === normalizedMainUsername)) {
+      continue;
+    }
+
+    if (!interactionsMap.has(username)) {
+      interactionsMap.set(username, {
+        username,
+        interactionCount: 0,
+        comments: [],
+      });
+    }
+
+    const userStats = interactionsMap.get(username);
+    userStats.interactionCount += 1;
+    userStats.comments.push({ date, text: commentText });
+  }
+
+  const topInteractedUsers = Array.from(interactionsMap.values()).sort(
+    (a, b) => b.interactionCount - a.interactionCount,
+  );
+
   const deletedDiaryCount = deletedDiaryRows.length;
   const deletedReviewsCount = deletedReviewsRows.length;
   const deletedCommentsCount = deletedCommentsRows.length;
@@ -1277,6 +1323,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     totalWatchlist,
     totalReviews,
     totalComments,
+    topInteractedUsers,
     deletedDiaryCount,
     deletedReviewsCount,
     deletedCommentsCount,
