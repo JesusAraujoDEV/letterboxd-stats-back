@@ -1,6 +1,9 @@
 {
   "name": "letterboxd-stats-back",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "description": "API en Node.js y Express para extraer, procesar y analizar archivos de exportación (CSV/ZIP) de Letterboxd. 🚀🎬",
   "main": "src/server.js",
   "scripts": {
