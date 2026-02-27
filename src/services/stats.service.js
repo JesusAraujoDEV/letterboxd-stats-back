@@ -578,15 +578,28 @@ const buildCacheKey = (title, year) => {
   return `${safeTitle}::${safeYear}`;
 };
 
-const getUsernameFromShortLink = async (shortUrl) => {
+const resolveLetterboxdLink = async (shortUrl) => {
   try {
     const response = await fetch(shortUrl, { method: "HEAD", redirect: "follow" });
-    const finalUrl = new URL(response.url);
-    const pathParts = finalUrl.pathname.split("/").filter(Boolean);
-    return pathParts[0] || "unknown";
+    const finalUrl = response.url;
+    const finalUrlObj = new URL(finalUrl);
+    const pathParts = finalUrlObj.pathname.split("/").filter(Boolean);
+
+    const username = pathParts[0] || "unknown";
+    const slug = pathParts[2] || "";
+
+    let itemName = "";
+    if (slug) {
+      itemName = slug
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+
+    return { username, itemName, finalUrl };
   } catch (error) {
     console.error(`Error resolviendo ${shortUrl}:`, error.message);
-    return "unknown";
+    return { username: "unknown", itemName: "", finalUrl: "" };
   }
 };
 
@@ -607,6 +620,18 @@ const getUserAvatar = async (username) => {
     return avatarUrl || null;
   } catch (error) {
     console.error(`Error obteniendo avatar para ${username}:`, error.message);
+    return null;
+  }
+};
+
+const getReviewPoster = async (reviewUrl) => {
+  try {
+    const response = await fetch(reviewUrl);
+    if (!response.ok) return null;
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    return $(".film-poster img.image").attr("src") || null;
+  } catch (error) {
     return null;
   }
 };
@@ -1247,23 +1272,28 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
       continue;
     }
 
-    const username = await getUsernameFromShortLink(String(shortLink).trim());
-    const normalizedUsername = username ? String(username).trim().toLowerCase() : "";
-    if (username === "unknown" || (normalizedMainUsername && normalizedUsername === normalizedMainUsername)) {
+    const { username: resolvedUsername, itemName, finalUrl } = await resolveLetterboxdLink(
+      String(shortLink).trim(),
+    );
+    const normalizedUsername = resolvedUsername ? String(resolvedUsername).trim().toLowerCase() : "";
+    if (
+      resolvedUsername === "unknown" ||
+      (normalizedMainUsername && normalizedUsername === normalizedMainUsername)
+    ) {
       continue;
     }
 
-    if (!interactionsMap.has(username)) {
-      interactionsMap.set(username, {
-        username,
+    if (!interactionsMap.has(resolvedUsername)) {
+      interactionsMap.set(resolvedUsername, {
+        username: resolvedUsername,
         interactionCount: 0,
         comments: [],
       });
     }
 
-    const userStats = interactionsMap.get(username);
+    const userStats = interactionsMap.get(resolvedUsername);
     userStats.interactionCount += 1;
-    userStats.comments.push({ date, text: commentText });
+    userStats.comments.push({ date, text: commentText, movie: itemName, finalUrl });
   }
 
   const topInteractedUsers = Array.from(interactionsMap.values()).sort(
@@ -1273,6 +1303,22 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const top15Users = topInteractedUsers.slice(0, 15);
   for (const user of top15Users) {
     user.avatarUrl = await getUserAvatar(user.username);
+  }
+
+  const top10Users = topInteractedUsers.slice(0, 10);
+  const posterCache = new Map();
+  for (const user of top10Users) {
+    for (const comment of user.comments) {
+      if (comment.finalUrl && comment.movie) {
+        if (!posterCache.has(comment.movie)) {
+          const posterUrl = await getReviewPoster(comment.finalUrl);
+          posterCache.set(comment.movie, posterUrl);
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+        comment.posterUrl = posterCache.get(comment.movie);
+      }
+      delete comment.finalUrl;
+    }
   }
 
   const deletedDiaryCount = deletedDiaryRows.length;
