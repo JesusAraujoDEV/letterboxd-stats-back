@@ -624,18 +624,6 @@ const getUserAvatar = async (username) => {
   }
 };
 
-const getReviewPoster = async (reviewUrl) => {
-  try {
-    const response = await fetch(reviewUrl);
-    if (!response.ok) return null;
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    return $(".film-poster img.image").attr("src") || null;
-  } catch (error) {
-    return null;
-  }
-};
-
 const incrementPersonCounter = (counter, person, movieTitle) => {
   if (!person || !person.name) return;
   const name = String(person.name).trim();
@@ -1306,18 +1294,19 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   }
 
   const top10Users = topInteractedUsers.slice(0, 10);
-  const posterCache = new Map();
+  const tmdbPosterCache = new Map();
   for (const user of top10Users) {
     for (const comment of user.comments) {
-      if (comment.finalUrl && comment.movie) {
-        if (!posterCache.has(comment.movie)) {
-          const posterUrl = await getReviewPoster(comment.finalUrl);
-          posterCache.set(comment.movie, posterUrl);
-          await new Promise((resolve) => setTimeout(resolve, 200));
+      if (comment.movie) {
+        if (!tmdbPosterCache.has(comment.movie)) {
+          const posterPath = await fetchMoviePosterPath(comment.movie, null);
+          const fullPosterUrl = posterPath
+            ? `https://image.tmdb.org/t/p/w200${posterPath}`
+            : null;
+          tmdbPosterCache.set(comment.movie, fullPosterUrl);
         }
-        comment.posterUrl = posterCache.get(comment.movie);
+        comment.posterUrl = tmdbPosterCache.get(comment.movie);
       }
-      delete comment.finalUrl;
     }
   }
 
