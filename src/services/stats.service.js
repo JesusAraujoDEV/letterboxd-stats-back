@@ -129,6 +129,40 @@ const parseWatchedDate = (value) => {
   };
 };
 
+const calculateLongestStreak = (logs) => {
+  const dates = [
+    ...new Set(
+      (logs || [])
+        .map((log) => log.watchedDate || log.Date)
+        .filter((date) => date != null && date !== "")
+        .map((date) => String(date).trim()),
+    ),
+  ].sort();
+
+  if (dates.length === 0) return 0;
+
+  let longestStreak = 1;
+  let currentStreak = 1;
+
+  for (let i = 1; i < dates.length; i += 1) {
+    const prevDate = new Date(dates[i - 1]);
+    const currDate = new Date(dates[i]);
+
+    const diffTime = Math.abs(currDate - prevDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) {
+      currentStreak += 1;
+      if (currentStreak > longestStreak) {
+        longestStreak = currentStreak;
+      }
+    } else if (diffDays > 1) {
+      currentStreak = 1;
+    }
+  }
+
+  return longestStreak;
+};
+
 const languageCodeMap = {
   ab: "Abkhazian",
   aa: "Afar",
@@ -1127,6 +1161,12 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     }))
     .sort((a, b) => a.year.localeCompare(b.year));
 
+  const longestStreak = calculateLongestStreak(
+    diaryRows.map((row) => ({
+      watchedDate: row["Watched Date"] || row["WatchedDate"] || row.watchedDate || row.Date,
+    })),
+  );
+
   let ratingSum = 0;
   let ratingCount = 0;
   const ratingDistribution = {};
@@ -1395,6 +1435,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     totalLikedLists,
     totalLikedReviews,
     topLikedYears,
+    longestStreak,
     topDecades,
     topGenres,
     topCountries,
