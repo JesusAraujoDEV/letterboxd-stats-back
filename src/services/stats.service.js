@@ -1,4 +1,5 @@
 const AdmZip = require("adm-zip");
+const cheerio = require("cheerio");
 const { parseCsvBuffer, getZipEntryBuffer, toTopN } = require("../utils/csvHelper");
 const { fetchMoviePosterPath, fetchMovieDetailsByTitleYear } = require("../utils/tmdbHelper");
 
@@ -586,6 +587,27 @@ const getUsernameFromShortLink = async (shortUrl) => {
   } catch (error) {
     console.error(`Error resolviendo ${shortUrl}:`, error.message);
     return "unknown";
+  }
+};
+
+const getUserAvatar = async (username) => {
+  try {
+    const response = await fetch(`https://letterboxd.com/${username}/`);
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    let avatarUrl = $("meta[property='og:image']").attr("content");
+
+    if (!avatarUrl || avatarUrl.includes("default-avatar")) {
+      avatarUrl = $(".profile-avatar img").attr("src") || $(".avatar img").attr("src");
+    }
+
+    return avatarUrl || null;
+  } catch (error) {
+    console.error(`Error obteniendo avatar para ${username}:`, error.message);
+    return null;
   }
 };
 
@@ -1247,6 +1269,11 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const topInteractedUsers = Array.from(interactionsMap.values()).sort(
     (a, b) => b.interactionCount - a.interactionCount,
   );
+
+  const top15Users = topInteractedUsers.slice(0, 15);
+  for (const user of top15Users) {
+    user.avatarUrl = await getUserAvatar(user.username);
+  }
 
   const deletedDiaryCount = deletedDiaryRows.length;
   const deletedReviewsCount = deletedReviewsRows.length;
