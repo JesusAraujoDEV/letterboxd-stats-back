@@ -4,6 +4,7 @@ const { parseCsvBuffer, getZipEntryBuffer, toTopN } = require("../utils/csvHelpe
 const { fetchMoviePosterPath, fetchMovieDetailsByTitleYear } = require("../utils/tmdbHelper");
 
 const buildTopDecades = async (ratingsRows) => {
+  const MIN_MOVIES_THRESHOLD = 4;
   const decadeMap = {};
 
   ratingsRows.forEach((row) => {
@@ -36,12 +37,22 @@ const buildTopDecades = async (ratingsRows) => {
     });
   });
 
-  const decadeAverages = Object.entries(decadeMap)
-    .map(([decade, data]) => ({
-      decade: Number(decade),
-      average: data.count > 0 ? Number((data.sum / data.count).toFixed(2)) : 0,
-      movies: data.movies,
-    }))
+  const decadeAverages = Object.entries(decadeMap).map(([decade, data]) => ({
+    decade: Number(decade),
+    average: data.count > 0 ? Number((data.sum / data.count).toFixed(2)) : 0,
+    movies: data.movies,
+    movieCount: data.count,
+  }));
+
+  let validDecades = decadeAverages.filter((entry) => entry.movieCount >= MIN_MOVIES_THRESHOLD);
+  if (validDecades.length < 3) {
+    validDecades = decadeAverages.filter((entry) => entry.movieCount >= 2);
+  }
+  if (validDecades.length < 3) {
+    validDecades = decadeAverages.filter((entry) => entry.movieCount >= 1);
+  }
+
+  const topDecadeCandidates = validDecades
     .sort((a, b) => b.average - a.average)
     .slice(0, 3);
 
@@ -72,7 +83,7 @@ const buildTopDecades = async (ratingsRows) => {
   };
 
   const topDecades = [];
-  for (const entry of decadeAverages) {
+  for (const entry of topDecadeCandidates) {
     const topMovies = entry.movies.sort(sortMovies).slice(0, 8);
     const topMoviesWithPosters = await enrichWithPosterPaths(topMovies);
     topDecades.push({
