@@ -1,5 +1,4 @@
 const AdmZip = require("adm-zip");
-const cheerio = require("cheerio");
 const { parseCsvBuffer, getZipEntryBuffer, toTopN } = require("../utils/csvHelper");
 const { fetchMoviePosterPath, fetchMovieDetailsByTitleYear } = require("../utils/tmdbHelper");
 
@@ -648,26 +647,7 @@ const resolveLetterboxdLink = async (shortUrl) => {
   }
 };
 
-const getUserAvatar = async (username) => {
-  try {
-    const response = await fetch(`https://letterboxd.com/${username}/`);
-    if (!response.ok) return null;
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    let avatarUrl = $("meta[property='og:image']").attr("content");
-
-    if (!avatarUrl || avatarUrl.includes("default-avatar")) {
-      avatarUrl = $(".profile-avatar img").attr("src") || $(".avatar img").attr("src");
-    }
-
-    return avatarUrl || null;
-  } catch (error) {
-    console.error(`Error obteniendo avatar para ${username}:`, error.message);
-    return null;
-  }
-};
+const getUserAvatar = async () => null;
 
 const incrementPersonCounter = (counter, person, movieTitle) => {
   if (!person || !person.name) return;
@@ -1341,7 +1321,8 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
 
   const top15Users = topInteractedUsers.slice(0, 15);
   for (const user of top15Users) {
-    user.avatarUrl = await getUserAvatar(user.username);
+    // Scraping de avatares desactivado para reducir CPU y latencia del endpoint.
+    user.avatarUrl = null;
   }
 
   const top10Users = topInteractedUsers.slice(0, 10);
