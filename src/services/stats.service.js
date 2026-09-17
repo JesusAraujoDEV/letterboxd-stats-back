@@ -1,6 +1,22 @@
 const AdmZip = require("adm-zip");
 const { parseCsvBuffer, getZipEntryBuffer, toTopN } = require("../utils/csvHelper");
 const { fetchMoviePosterPath, fetchMovieDetailsByTitleYear } = require("../utils/tmdbHelper");
+const { mapWithConcurrency } = require("../utils/concurrency");
+const {
+  extractMovieExtras,
+  buildFranchiseStats,
+  buildStudioStats,
+  buildIndustryTotals,
+  buildRatingComparison,
+} = require("./movieExtras.service");
+const {
+  buildRewatchStats,
+  buildReviewTextStats,
+  buildRatingExtremes,
+  buildRuntimeExtremes,
+  buildWatchSpan,
+} = require("./diaryExtras.service");
+const { buildFavoriteFilms, buildCustomLists } = require("./profileExtras.service");
 
 const buildTopDecades = async (ratingsRows) => {
   const MIN_MOVIES_THRESHOLD = 4;
@@ -622,20 +638,6 @@ const buildCacheKey = (title, year) => {
   return `${safeTitle}::${safeYear}`;
 };
 
-// ponytail: límite manual de concurrencia (sin dependencia nueva) — límite fijo, subir si el perfil de tráfico cambia
-const mapWithConcurrency = async (items, limit, fn) => {
-  const results = new Array(items.length);
-  let index = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (index < items.length) {
-      const current = index++;
-      results[current] = await fn(items[current], current);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-};
-
 const letterboxdLinkCache = new Map();
 
 const resolveLetterboxdLink = async (shortUrl) => {
@@ -774,6 +776,7 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
         genres: Array.isArray(details.genres) ? details.genres.map((g) => g.name).filter(Boolean) : [],
         country,
         language,
+        ...extractMovieExtras(details),
         directors: Array.isArray(details.credits && details.credits.crew)
           ? details.credits.crew
               .filter((c) => c && c.job === "Director" && c.name)
@@ -1441,6 +1444,22 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   );
   const totalHoursWatched = await buildTotalHoursWatched(diaryRows, tmdbDetailsCache);
 
+  const rewatchStats = buildRewatchStats(diaryRows);
+  const reviewTextStats = buildReviewTextStats(reviewsRows);
+  const ratingExtremes = buildRatingExtremes(ratingsRows, tmdbDetailsCache);
+  const runtimeExtremes = buildRuntimeExtremes(diaryRows, tmdbDetailsCache);
+  const watchSpan = buildWatchSpan(diaryRows);
+  const franchiseStats = buildFranchiseStats(allMovies);
+  const studioStats = buildStudioStats(allMovies);
+  const industryTotals = buildIndustryTotals(allMovies);
+  const ratingComparison = buildRatingComparison(ratingsRows, tmdbDetailsCache);
+  const favoriteFilms = await buildFavoriteFilms(profileRow);
+  const customLists = await buildCustomLists(zip);
+  const dateJoined = profileRow["Date Joined"] || null;
+  const daysActive = dateJoined
+    ? Math.floor((Date.now() - new Date(dateJoined).getTime()) / 86400000)
+    : null;
+
   return {
     profile,
     totalMovies,
@@ -1479,6 +1498,18 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     activityStats,
     watchedYearStats,
     allMovies,
+    rewatchStats,
+    reviewTextStats,
+    ratingExtremes,
+    runtimeExtremes,
+    watchSpan,
+    franchiseStats,
+    studioStats,
+    industryTotals,
+    ratingComparison,
+    favoriteFilms,
+    customLists,
+    daysActive,
   };
 };
 

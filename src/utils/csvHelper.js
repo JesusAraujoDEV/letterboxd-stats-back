@@ -34,8 +34,31 @@ const toTopN = (counter, n, keyName) => {
     .map(([key, count]) => ({ [keyName]: key, count }));
 };
 
+// ponytail: las listas de Letterboxd exportan dos tablas CSV en un solo archivo (metadata + películas), separadas por línea en blanco
+const parseListCsvBuffer = async (buffer) => {
+  const text = buffer.toString("utf8");
+  const filmsIndex = text.indexOf("Position,Name,Year,URL");
+  if (filmsIndex === -1) {
+    return { name: "", description: "", films: [] };
+  }
+
+  const metaLines = text.slice(0, filmsIndex).trim().split("\n");
+  const metaRows = await parseCsvBuffer(Buffer.from(metaLines.slice(1).join("\n")));
+  const meta = metaRows[0] || {};
+
+  const filmRows = await parseCsvBuffer(Buffer.from(text.slice(filmsIndex)));
+  const films = filmRows.map((row) => ({
+    position: Number(row.Position) || null,
+    title: row.Name || "",
+    year: row.Year || "",
+  }));
+
+  return { name: (meta.Name || "").trim(), description: meta.Description || "", films };
+};
+
 module.exports = {
   parseCsvBuffer,
   getZipEntryBuffer,
   toTopN,
+  parseListCsvBuffer,
 };

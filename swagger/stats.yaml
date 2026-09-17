@@ -63,6 +63,113 @@ paths:
                         count:
                           type: integer
                           example: 40
+                  rewatchStats:
+                    type: object
+                    properties:
+                      totalRewatches:
+                        type: integer
+                      rewatchPercentage:
+                        type: number
+                      averageRatingFirstWatch:
+                        type: number
+                        nullable: true
+                      averageRatingRewatch:
+                        type: number
+                        nullable: true
+                  reviewTextStats:
+                    type: object
+                    properties:
+                      totalWordsWritten:
+                        type: integer
+                      longestReview:
+                        type: object
+                        nullable: true
+                  ratingExtremes:
+                    type: object
+                    properties:
+                      highest:
+                        type: array
+                        items:
+                          type: object
+                      lowest:
+                        type: array
+                        items:
+                          type: object
+                  runtimeExtremes:
+                    type: object
+                    nullable: true
+                    properties:
+                      longest:
+                        type: object
+                      shortest:
+                        type: object
+                  watchSpan:
+                    type: object
+                    nullable: true
+                    properties:
+                      first:
+                        type: object
+                      last:
+                        type: object
+                  franchiseStats:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        count:
+                          type: integer
+                  studioStats:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        count:
+                          type: integer
+                  industryTotals:
+                    type: object
+                    properties:
+                      totalBudget:
+                        type: integer
+                      totalRevenue:
+                        type: integer
+                  ratingComparison:
+                    type: object
+                    nullable: true
+                    properties:
+                      yourAverage:
+                        type: number
+                      worldAverage:
+                        type: number
+                      sampleSize:
+                        type: integer
+                  favoriteFilms:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        title:
+                          type: string
+                        posterPath:
+                          type: string
+                          nullable: true
+                  customLists:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        filmCount:
+                          type: integer
+                  daysActive:
+                    type: integer
+                    nullable: true
         "400":
           description: Error de validación
           content:
@@ -73,6 +180,16 @@ paths:
                   error:
                     type: string
                     example: "Archivo requerido en el campo 'file'."
+        "413":
+          description: Archivo demasiado grande
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "El archivo supera el límite de 20MB."
         "500":
           description: Error interno
           content:
