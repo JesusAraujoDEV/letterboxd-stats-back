@@ -9,6 +9,13 @@ const { buildInteractionStats } = require("./interactionStats.service");
 const { buildActivityStats } = require("./activityStats.service");
 const { buildRatingStats } = require("./ratingStats.service");
 const { buildYearTagStats } = require("./yearTagStats.service");
+const {
+  buildWatchReleaseCrossStats,
+  buildWatchAgeGapStats,
+  buildDominantDecadeByWatchYear,
+  buildPremiereChaserStats,
+} = require("./watchReleaseCross.service");
+const { buildRatingStreaks } = require("./ratingStreaks.service");
 const { buildMostRewatchedMovies } = require("./mostRewatched.service");
 const { buildCollectionCounts } = require("./collectionCounts.service");
 const {
@@ -105,6 +112,11 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     favoriteFilms,
     customLists,
     daysActive: buildDaysActive(profileRow),
+    watchYearBreakdown: buildWatchReleaseCrossStats(rows.diaryRows),
+    watchAgeGapStats: buildWatchAgeGapStats(rows.diaryRows),
+    dominantDecadeByWatchYear: buildDominantDecadeByWatchYear(rows.diaryRows),
+    premiereChaserStats: buildPremiereChaserStats(rows.diaryRows),
+    ratingStreaks: buildRatingStreaks(rows.diaryRows),
   };
 };
 
