@@ -15,10 +15,13 @@ const parseCsvBuffer = (buffer) => {
 };
 
 const getZipEntryBuffer = (zip, filename) => {
+  // ponytail: match exacto primero — "diary.csv" no debe resolver a "deleted/diary.csv"
+  // solo porque el orden interno del ZIP lo pone antes (endsWith puro es ambiguo aquí)
   const normalized = filename.toLowerCase();
-  const entry = zip
-    .getEntries()
-    .find((e) => e.entryName.toLowerCase().endsWith(normalized));
+  const entries = zip.getEntries();
+  const entry =
+    entries.find((e) => e.entryName.toLowerCase() === normalized) ||
+    entries.find((e) => e.entryName.toLowerCase().endsWith(`/${normalized}`));
 
   if (!entry) {
     throw new Error(`Archivo ${filename} no encontrado en el ZIP.`);
