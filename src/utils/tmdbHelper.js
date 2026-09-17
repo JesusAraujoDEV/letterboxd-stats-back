@@ -29,9 +29,13 @@ const fetchTmdbJson = async (url) => {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
       },
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        console.warn(`TMDB rate limit (429): ${url}`);
+      }
       return null;
     }
 

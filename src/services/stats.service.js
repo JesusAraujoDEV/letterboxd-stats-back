@@ -622,9 +622,33 @@ const buildCacheKey = (title, year) => {
   return `${safeTitle}::${safeYear}`;
 };
 
+// ponytail: límite manual de concurrencia (sin dependencia nueva) — límite fijo, subir si el perfil de tráfico cambia
+const mapWithConcurrency = async (items, limit, fn) => {
+  const results = new Array(items.length);
+  let index = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (index < items.length) {
+      const current = index++;
+      results[current] = await fn(items[current], current);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+};
+
+const letterboxdLinkCache = new Map();
+
 const resolveLetterboxdLink = async (shortUrl) => {
+  if (letterboxdLinkCache.has(shortUrl)) {
+    return letterboxdLinkCache.get(shortUrl);
+  }
+
   try {
-    const response = await fetch(shortUrl, { method: "HEAD", redirect: "follow" });
+    const response = await fetch(shortUrl, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(4000),
+    });
     const finalUrl = response.url;
     const finalUrlObj = new URL(finalUrl);
     const pathParts = finalUrlObj.pathname.split("/").filter(Boolean);
@@ -640,10 +664,14 @@ const resolveLetterboxdLink = async (shortUrl) => {
         .join(" ");
     }
 
-    return { username, itemName, finalUrl };
+    const result = { username, itemName, finalUrl };
+    letterboxdLinkCache.set(shortUrl, result);
+    return result;
   } catch (error) {
     console.error(`Error resolviendo ${shortUrl}:`, error.message);
-    return { username: "unknown", itemName: "", finalUrl: "" };
+    const fallback = { username: "unknown", itemName: "", finalUrl: "" };
+    letterboxdLinkCache.set(shortUrl, fallback);
+    return fallback;
   }
 };
 
@@ -707,11 +735,12 @@ const buildTopMetadataFromWatched = async (watchedRows, diaryRows, likedTitlesSe
     const detailsList = await Promise.all(
       batch.map(async (movie) => {
         const cacheKey = buildCacheKey(movie.title, movie.year);
-        if (detailsCache && detailsCache[cacheKey]) {
+        if (detailsCache && Object.prototype.hasOwnProperty.call(detailsCache, cacheKey)) {
           return detailsCache[cacheKey];
         }
+        // ponytail: cachea también el null (caché negativa) — evita re-consultar TMDB en cada rewatch de una película no resoluble
         const details = await fetchMovieDetailsByTitleYear(movie.title, movie.year);
-        if (detailsCache && details) {
+        if (detailsCache) {
           detailsCache[cacheKey] = details;
         }
         return details;
@@ -906,10 +935,12 @@ const buildTopCreditsFromDiary = async (diaryRows, detailsCache) => {
     const yearKey = Number.isFinite(year) ? String(year) : "";
     const cacheKey = buildCacheKey(title, yearKey);
 
-    let details = detailsCache && detailsCache[cacheKey];
-    if (!details) {
+    let details;
+    if (detailsCache && Object.prototype.hasOwnProperty.call(detailsCache, cacheKey)) {
+      details = detailsCache[cacheKey];
+    } else {
       details = await fetchMovieDetailsByTitleYear(title, yearKey || null);
-      if (detailsCache && details) {
+      if (detailsCache) {
         detailsCache[cacheKey] = details;
       }
     }
@@ -968,10 +999,12 @@ const buildTotalHoursWatched = async (diaryRows, detailsCache) => {
     const yearKey = Number.isFinite(year) ? String(year) : "";
     const cacheKey = getCacheKey(title, yearKey);
 
-    let details = detailsCache && detailsCache[cacheKey];
-    if (!details) {
+    let details;
+    if (detailsCache && Object.prototype.hasOwnProperty.call(detailsCache, cacheKey)) {
+      details = detailsCache[cacheKey];
+    } else {
       details = await fetchMovieDetailsByTitleYear(title, yearKey || null);
-      if (detailsCache && details) {
+      if (detailsCache) {
         detailsCache[cacheKey] = details;
       }
     }
@@ -1282,18 +1315,20 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   const totalComments = commentsRows.length;
 
   const interactionsMap = new Map();
-  for (const row of commentsRows) {
+  const commentsWithLinks = commentsRows.filter((row) => {
     const shortLink = row.Content || row.content || row["Content"] || null;
+    return shortLink && String(shortLink).includes("boxd.it");
+  });
+  const resolvedLinks = await mapWithConcurrency(commentsWithLinks, 8, (row) => {
+    const shortLink = row.Content || row.content || row["Content"] || null;
+    return resolveLetterboxdLink(String(shortLink).trim());
+  });
+
+  for (let commentIndex = 0; commentIndex < commentsWithLinks.length; commentIndex += 1) {
+    const row = commentsWithLinks[commentIndex];
     const commentText = row.Comment || row.comment || row["Comment"] || "";
     const date = row.Date || row.date || row["Date"] || null;
-
-    if (!shortLink || !String(shortLink).includes("boxd.it")) {
-      continue;
-    }
-
-    const { username: resolvedUsername, itemName, finalUrl } = await resolveLetterboxdLink(
-      String(shortLink).trim(),
-    );
+    const { username: resolvedUsername, itemName, finalUrl } = resolvedLinks[commentIndex];
     const normalizedUsername = resolvedUsername ? String(resolvedUsername).trim().toLowerCase() : "";
     if (
       resolvedUsername === "unknown" ||
@@ -1326,21 +1361,24 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
   }
 
   const top10Users = topInteractedUsers.slice(0, 10);
+  const uniqueCommentMovies = new Set();
+  top10Users.forEach((user) => {
+    user.comments.forEach((comment) => {
+      if (comment.movie) uniqueCommentMovies.add(comment.movie);
+    });
+  });
+
   const tmdbPosterCache = new Map();
-  for (const user of top10Users) {
-    for (const comment of user.comments) {
-      if (comment.movie) {
-        if (!tmdbPosterCache.has(comment.movie)) {
-          const posterPath = await fetchMoviePosterPath(comment.movie, null);
-          const fullPosterUrl = posterPath
-            ? `https://image.tmdb.org/t/p/w200${posterPath}`
-            : null;
-          tmdbPosterCache.set(comment.movie, fullPosterUrl);
-        }
-        comment.posterUrl = tmdbPosterCache.get(comment.movie);
-      }
-    }
-  }
+  await mapWithConcurrency(Array.from(uniqueCommentMovies), 8, async (movie) => {
+    const posterPath = await fetchMoviePosterPath(movie, null);
+    tmdbPosterCache.set(movie, posterPath ? `https://image.tmdb.org/t/p/w200${posterPath}` : null);
+  });
+
+  top10Users.forEach((user) => {
+    user.comments.forEach((comment) => {
+      if (comment.movie) comment.posterUrl = tmdbPosterCache.get(comment.movie) ?? null;
+    });
+  });
 
   const deletedDiaryCount = deletedDiaryRows.length;
   const deletedReviewsCount = deletedReviewsRows.length;
