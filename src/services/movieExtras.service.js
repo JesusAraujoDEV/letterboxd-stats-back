@@ -3,41 +3,49 @@
 const { buildTmdbCacheKey } = require("../utils/cacheKey");
 
 const extractMovieExtras = (details) => ({
-  collection: details.belongs_to_collection ? details.belongs_to_collection.name : null,
+  collection: details.belongs_to_collection
+    ? { name: details.belongs_to_collection.name, posterPath: details.belongs_to_collection.poster_path || null }
+    : null,
   budget: Number.isFinite(details.budget) && details.budget > 0 ? details.budget : null,
   revenue: Number.isFinite(details.revenue) && details.revenue > 0 ? details.revenue : null,
   voteAverage: Number.isFinite(details.vote_average) ? details.vote_average : null,
   studios: Array.isArray(details.production_companies)
-    ? details.production_companies.map((company) => company.name).filter(Boolean)
+    ? details.production_companies
+        .filter((company) => company && company.name)
+        .map((company) => ({ name: company.name, logoPath: company.logo_path || null }))
     : [],
 });
 
 const buildFranchiseStats = (allMovies, topN = 10) => {
   const counter = {};
   allMovies.forEach((movie) => {
-    if (!movie.collection) return;
-    counter[movie.collection] = (counter[movie.collection] || 0) + 1;
+    if (!movie.collection || !movie.collection.name) return;
+    const key = movie.collection.name;
+    if (!counter[key]) counter[key] = { name: key, count: 0, posterPath: movie.collection.posterPath || null };
+    counter[key].count += 1;
+    if (!counter[key].posterPath && movie.collection.posterPath) counter[key].posterPath = movie.collection.posterPath;
   });
 
-  return Object.entries(counter)
-    .filter(([, count]) => count > 1)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, topN)
-    .map(([name, count]) => ({ name, count }));
+  return Object.values(counter)
+    .filter((entry) => entry.count > 1)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, topN);
 };
 
 const buildStudioStats = (allMovies, topN = 10) => {
   const counter = {};
   allMovies.forEach((movie) => {
     (movie.studios || []).forEach((studio) => {
-      counter[studio] = (counter[studio] || 0) + 1;
+      if (!studio || !studio.name) return;
+      if (!counter[studio.name]) counter[studio.name] = { name: studio.name, count: 0, logoPath: studio.logoPath || null };
+      counter[studio.name].count += 1;
+      if (!counter[studio.name].logoPath && studio.logoPath) counter[studio.name].logoPath = studio.logoPath;
     });
   });
 
-  return Object.entries(counter)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, topN)
-    .map(([name, count]) => ({ name, count }));
+  return Object.values(counter)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, topN);
 };
 
 const buildIndustryTotals = (allMovies) => {

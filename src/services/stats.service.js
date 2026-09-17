@@ -97,7 +97,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     reviewTextStats: buildReviewTextStats(rows.reviewsRows),
     ratingExtremes: buildRatingExtremes(rows.ratingsRows, tmdbDetailsCache),
     runtimeExtremes: buildRuntimeExtremes(rows.diaryRows, tmdbDetailsCache),
-    watchSpan: buildWatchSpan(rows.diaryRows),
+    watchSpan: buildWatchSpan(rows.diaryRows, tmdbDetailsCache),
     franchiseStats: buildFranchiseStats(allMovies),
     studioStats: buildStudioStats(allMovies),
     industryTotals: buildIndustryTotals(allMovies),

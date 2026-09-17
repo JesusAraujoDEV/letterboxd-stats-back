@@ -92,17 +92,24 @@ const buildRuntimeExtremes = (diaryRows, detailsCache) => {
   return { longest: movies[0], shortest: movies[movies.length - 1] };
 };
 
-const buildWatchSpan = (diaryRows) => {
+const buildWatchSpan = (diaryRows, detailsCache) => {
   const withDates = diaryRows
     .map((row) => ({
       title: row.Name ? String(row.Name).trim() : "",
+      year: row.Year || "",
       date: row["Watched Date"] || row.Date || "",
     }))
     .filter((entry) => entry.title && entry.date)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (withDates.length === 0) return null;
-  return { first: withDates[0], last: withDates[withDates.length - 1] };
+
+  const withPoster = (entry) => {
+    const details = detailsCache ? detailsCache[buildTmdbCacheKey(entry.title, entry.year)] : null;
+    return { title: entry.title, date: entry.date, posterPath: details ? details.poster_path : null };
+  };
+
+  return { first: withPoster(withDates[0]), last: withPoster(withDates[withDates.length - 1]) };
 };
 
 module.exports = {
