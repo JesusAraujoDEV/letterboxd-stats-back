@@ -8,7 +8,7 @@ This project was audited against the `crew` plugin documentation standard (taxon
 
 | # | Deviation | Standard says | This project does | Rationale | Decided | Date |
 |---|-----------|---------------|-------------------|-----------|---------|------|
-| - | - | - | - | - | - | - |
+| 1 | `src/utils/countryMap.js` — flat static ISO country-code → name lookup table would need 258 lines at one entry per line | Files over the 200-line "Generic module" ceiling must be split | Kept as one file, packed 5 entries per line (~57 lines) instead of splitting alphabetically | It's data, not logic; an alphabetical split adds no readability, it only exists to satisfy a line count — packing entries per line honors both the spirit and the mechanical `guard-code-quality.js` hook | Jesús Araujo (owner) | 2026-09-17 |
 
 ## Convention
 

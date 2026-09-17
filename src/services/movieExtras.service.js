@@ -1,5 +1,6 @@
 // Datos derivados de los campos de TMDB que ya se piden (collection, budget, revenue,
 // vote_average, production_companies) pero no se usaban.
+const { buildTmdbCacheKey } = require("../utils/cacheKey");
 
 const extractMovieExtras = (details) => ({
   collection: details.belongs_to_collection ? details.belongs_to_collection.name : null,
@@ -51,9 +52,6 @@ const buildIndustryTotals = (allMovies) => {
   return { totalBudget, totalRevenue };
 };
 
-const buildCacheKey = (title, year) =>
-  `${String(title || "").trim().toLowerCase()}::${String(year || "").trim()}`;
-
 const buildRatingComparison = (ratingsRows, detailsCache) => {
   let yourSum = 0;
   let worldSum = 0;
@@ -64,7 +62,7 @@ const buildRatingComparison = (ratingsRows, detailsCache) => {
     const rating = parseFloat(row.Rating);
     if (!title || !Number.isFinite(rating)) return;
 
-    const details = detailsCache[buildCacheKey(title, row.Year)];
+    const details = detailsCache[buildTmdbCacheKey(title, row.Year)];
     if (!details || !Number.isFinite(details.vote_average)) return;
 
     yourSum += rating * 2; // TMDB usa escala 0-10, Letterboxd 0-5

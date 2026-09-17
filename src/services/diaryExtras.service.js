@@ -1,5 +1,6 @@
 // Estadísticas derivadas de columnas de diary.csv/reviews.csv/ratings.csv que ya se
 // parsean pero no se usaban (Rewatch explícito, texto de reseñas, extremos de rating y runtime).
+const { buildTmdbCacheKey } = require("../utils/cacheKey");
 
 const isRewatchRow = (row) => String(row.Rewatch || "").trim().toLowerCase() === "yes";
 
@@ -48,9 +49,6 @@ const buildReviewTextStats = (reviewsRows) => {
   return { totalWordsWritten: totalWords, longestReview: longest };
 };
 
-const buildCacheKey = (title, year) =>
-  `${String(title || "").trim().toLowerCase()}::${String(year || "").trim()}`;
-
 const buildRatingExtremes = (ratingsRows, detailsCache, limit = 5) => {
   const rated = ratingsRows
     .map((row) => ({
@@ -60,7 +58,7 @@ const buildRatingExtremes = (ratingsRows, detailsCache, limit = 5) => {
     }))
     .filter((movie) => movie.title && Number.isFinite(movie.rating))
     .map((movie) => {
-      const details = detailsCache[buildCacheKey(movie.title, movie.year)];
+      const details = detailsCache[buildTmdbCacheKey(movie.title, movie.year)];
       return { ...movie, posterPath: details ? details.poster_path : null };
     });
 
@@ -78,7 +76,7 @@ const buildRuntimeExtremes = (diaryRows, detailsCache) => {
     const title = row.Name ? String(row.Name).trim() : "";
     if (!title) return;
 
-    const key = buildCacheKey(title, row.Year);
+    const key = buildTmdbCacheKey(title, row.Year);
     if (seen.has(key)) return;
 
     const details = detailsCache[key];
