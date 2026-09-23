@@ -32,6 +32,7 @@ const {
   buildWatchSpan,
 } = require("./diaryExtras.service");
 const { buildFavoriteFilms, buildCustomLists } = require("./profileExtras.service");
+const { buildRewatchByYear } = require("./rewatchByYear.service");
 
 const buildStatsFromZipBuffer = async (zipBuffer) => {
   let zip;
@@ -117,6 +118,7 @@ const buildStatsFromZipBuffer = async (zipBuffer) => {
     dominantDecadeByWatchYear: buildDominantDecadeByWatchYear(rows.diaryRows),
     premiereChaserStats: buildPremiereChaserStats(rows.diaryRows),
     ratingStreaks: buildRatingStreaks(rows.diaryRows),
+    rewatchByYear: buildRewatchByYear(rows.diaryRows),
   };
 };
 

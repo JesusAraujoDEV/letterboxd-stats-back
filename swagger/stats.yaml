@@ -76,6 +76,29 @@ paths:
                       averageRatingRewatch:
                         type: number
                         nullable: true
+                  rewatchByYear:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        year:
+                          type: string
+                          example: "2025"
+                        totalWatches:
+                          type: integer
+                          example: 70
+                        firstWatches:
+                          type: integer
+                          example: 62
+                        rewatches:
+                          type: integer
+                          example: 8
+                        firstWatchPercentage:
+                          type: number
+                          example: 88.6
+                        rewatchPercentage:
+                          type: number
+                          example: 11.4
                   reviewTextStats:
                     type: object
                     properties:

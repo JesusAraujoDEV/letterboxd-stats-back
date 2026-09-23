@@ -113,6 +113,7 @@ const buildWatchSpan = (diaryRows, detailsCache) => {
 };
 
 module.exports = {
+  isRewatchRow,
   buildRewatchStats,
   buildReviewTextStats,
   buildRatingExtremes,
