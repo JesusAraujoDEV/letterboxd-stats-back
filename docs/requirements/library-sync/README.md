@@ -4,4 +4,4 @@ Keeps the owner's Letterboxd library in Postgres and serves it to Fondo Mi Box t
 
 | # | Requirement | Status |
 |---|-------------|--------|
-| 001 | [Personal library API](001-personal-library-api.md) | In progress |
+| 001 | [Personal library API](001-personal-library-api.md) | Delivered |

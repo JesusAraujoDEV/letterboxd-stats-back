@@ -1,6 +1,6 @@
 # 001 — Personal library API
 
-- **Status:** In progress
+- **Status:** Delivered
 - **Plan:** library-sync ([README](README.md))
 - **Date:** 2026-10-30
 - **Author role:** SYS
@@ -30,10 +30,10 @@ Code, schema, OpenAPI contract, updated `AGENTS.md`, deployed service, initial d
 
 | Milestone | Est. hours | Started | Finished | Actual hours | Notes |
 |-----------|-----------|---------|----------|--------------|-------|
-| Schema, import and feed sync | 3 | 2026-10-30 15:22 -0400 | | | |
-| Recommendations and API | 2 | | | | |
-| Contract and docs | 1 | | | | |
-| Deploy and initial load | 1 | | | | |
+| Schema, import and feed sync | 3 | 2026-10-30 15:22 -0400 | 2026-10-30 15:27 -0400 | 0.1 | Executed together with the next two milestones; the time is the shared total |
+| Recommendations and API | 2 | 2026-10-30 15:22 -0400 | 2026-10-30 15:27 -0400 | 0.1 | Shared total |
+| Contract and docs | 1 | 2026-10-30 15:22 -0400 | 2026-10-30 15:27 -0400 | 0.1 | Shared total |
+| Deploy and initial load | 1 | 2026-10-30 15:26 -0400 | 2026-10-30 15:33 -0400 | 0.1 | Times from the Dokploy auto-deploy record and the import finish in `/api/health` |
 
 ## Changes
 
