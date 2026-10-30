@@ -70,7 +70,25 @@ const fetchMovieDetailsByTitleYear = async (title, year) => {
   return await fetchTmdbJson(detailsUrl);
 };
 
+const fetchTmdbTitle = (type, id) =>
+  fetchTmdbJson(`https://api.themoviedb.org/3/${type}/${id}?language=en-US`);
+
+const fetchMovieRecommendations = async (id) => {
+  const url = `https://api.themoviedb.org/3/movie/${id}/recommendations?language=en-US&page=1`;
+  const payload = await fetchTmdbJson(url);
+  return payload && payload.results ? payload.results : [];
+};
+
+const fetchStreamingProviders = async (id, country) => {
+  const payload = await fetchTmdbJson(`https://api.themoviedb.org/3/movie/${id}/watch/providers`);
+  const region = payload && payload.results ? payload.results[country] : null;
+  return region && region.flatrate ? region.flatrate.map((p) => p.provider_name) : [];
+};
+
 module.exports = {
   fetchMoviePosterPath,
   fetchMovieDetailsByTitleYear,
+  fetchTmdbTitle,
+  fetchMovieRecommendations,
+  fetchStreamingProviders,
 };

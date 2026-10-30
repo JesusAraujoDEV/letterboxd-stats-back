@@ -31,8 +31,9 @@ Full specification: [`docs/spec.md`](docs/spec.md) (pendiente de escribir).
 | Integración externa | TMDB (`src/utils/tmdbHelper.js`) |
 | API docs | swagger-ui-express + `swagger/*.yaml` |
 | Config | dotenv (`.env`, nunca versionado) |
+| Datos | Postgres vía `pg`, esquema `letterboxd` (solo biblioteca personal, [ADR 0001](docs/decisions/0001-persist-personal-library-in-postgres.md)) |
 
-Locked decisions (no re-discuss): CommonJS (no ESM), sin base de datos (el estado vive en el archivo que sube el usuario), sin TypeScript, sin GraphQL.
+Locked decisions (no re-discuss): CommonJS (no ESM), `/api/upload-stats` sin estado (la biblioteca personal es lo único que persiste), sin TypeScript, sin GraphQL.
 
 ## Architecture rules
 

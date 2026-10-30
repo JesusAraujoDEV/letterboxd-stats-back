@@ -45,4 +45,4 @@ Add new ADRs to this list with their status:
 
 | # | Title | Status |
 |---|-------|--------|
-| - | - | - |
+| 0001 | [Persist the owner's Letterboxd library in Postgres](0001-persist-personal-library-in-postgres.md) | Accepted |

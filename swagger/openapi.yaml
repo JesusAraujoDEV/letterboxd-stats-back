@@ -5,6 +5,23 @@ info:
 tags:
   - name: Stats
     description: Estadísticas de Letterboxd
+  - name: Library
+    description: Biblioteca personal guardada en Postgres
 paths:
   /api/upload-stats:
     $ref: "./stats.yaml#/paths/~1api~1upload-stats"
+  /api/films:
+    $ref: "./library.yaml#/paths/~1api~1films"
+  /api/watchlist:
+    $ref: "./library.yaml#/paths/~1api~1watchlist"
+  /api/recommendations:
+    $ref: "./library.yaml#/paths/~1api~1recommendations"
+  /api/health:
+    $ref: "./library.yaml#/paths/~1api~1health"
+  /api/library/import:
+    $ref: "./library.yaml#/paths/~1api~1library~1import"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

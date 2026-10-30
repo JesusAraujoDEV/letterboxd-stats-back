@@ -46,7 +46,7 @@
 | Documentación | `swagger-ui-express`, `@apidevtools/swagger-parser`, YAML OpenAPI | Portal de contrato y exploración de endpoints |
 | Integraciones | TMDB API, Letterboxd | Enriquecimiento de metadatos y resolución de perfiles |
 | Infra / Runtime | `cors`, `dotenv`, `nodemon` | Configuración, entorno local y CORS seguro |
-| Base de datos | No aplica | El análisis se realiza sobre el ZIP subido |
+| Base de datos | PostgreSQL, esquema `letterboxd` | Biblioteca personal; `/api/upload-stats` sigue sin estado |
 
 ## 🔌 Documentación de la API
 
@@ -55,6 +55,13 @@
 | Método | Ruta | Descripción |
 |---|---|---|
 | `POST` | `/api/upload-stats` | Sube un ZIP exportado desde Letterboxd y devuelve el set completo de estadísticas calculadas. |
+| `GET` | `/api/films` | Películas vistas de la biblioteca personal. Requiere token. |
+| `GET` | `/api/watchlist` | Películas pendientes, con el mismo formato. Requiere token. |
+| `GET` | `/api/recommendations` | Recomendaciones con motivo y disponibilidad por país. Requiere token. |
+| `GET` | `/api/health` | Fecha de la última actualización y si la última corrida falló. Requiere token. |
+| `POST` | `/api/library/import` | Importa un ZIP recién exportado como foto completa de la biblioteca. Requiere token. |
+
+La biblioteca usa `Authorization: Bearer <LIBRARY_API_TOKEN>` y necesita `DATABASE_URL`, `LETTERBOXD_USERNAME` y, opcionalmente, `RECOMMENDATIONS_COUNTRY` (por defecto `VE`). El feed público se lee a diario a las 03:00 de Caracas. Solo agrega actividad nueva: los cambios en calificaciones antiguas, los borrados y la watchlist se actualizan con el siguiente ZIP.
 
 ### `POST /api/upload-stats`
 

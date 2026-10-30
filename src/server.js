@@ -6,6 +6,9 @@ const swaggerUi = require("swagger-ui-express");
 const SwaggerParser = require("@apidevtools/swagger-parser");
 require("dotenv").config();
 const statsRoutes = require("./routes/stats.routes");
+const libraryRoutes = require("./routes/library.routes");
+const { ensureSchema } = require("./utils/db");
+const { startSyncScheduler } = require("./services/syncScheduler.service");
 
 const app = express();
 
@@ -43,8 +46,17 @@ setupSwagger().catch((err) => {
 });
 
 app.use("/api", statsRoutes);
+app.use("/api", libraryRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+if (process.env.DATABASE_URL) {
+  ensureSchema()
+    .then(startSyncScheduler)
+    .catch((err) => {
+      console.error("Error inicializando la biblioteca:", err.message || err);
+    });
+}

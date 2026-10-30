@@ -1,0 +1,198 @@
+paths:
+  /api/films:
+    get:
+      tags:
+        - Library
+      summary: Películas vistas
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lista de películas vistas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Film"
+        "401":
+          description: Token inválido
+  /api/watchlist:
+    get:
+      tags:
+        - Library
+      summary: Películas pendientes
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Watchlist con el mismo formato que /api/films
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Film"
+        "401":
+          description: Token inválido
+  /api/recommendations:
+    get:
+      tags:
+        - Library
+      summary: Recomendaciones listas para mostrar
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Recomendaciones ordenadas por puntaje
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recommendation"
+        "401":
+          description: Token inválido
+  /api/health:
+    get:
+      tags:
+        - Library
+      summary: Fecha de la última actualización y si la última corrida falló
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Estado de la sincronización
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lastUpdate:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  failed:
+                    type: boolean
+                  lastRun:
+                    type: object
+                    nullable: true
+                    properties:
+                      source:
+                        type: string
+                        enum: [feed, zip]
+                      ok:
+                        type: boolean
+                        nullable: true
+                      error:
+                        type: string
+                        nullable: true
+                      finishedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        "401":
+          description: Token inválido
+  /api/library/import:
+    post:
+      tags:
+        - Library
+      summary: Importa un ZIP reciente de Letterboxd como foto completa de la biblioteca
+      description: Reemplaza calificaciones, marcas y diario hasta la fecha más nueva del ZIP. Sube siempre un export recién descargado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        "200":
+          description: Resumen de la importación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  films:
+                    type: integer
+                  filmsFailed:
+                    type: integer
+                  diaryEntries:
+                    type: integer
+                  diarySkipped:
+                    type: integer
+                  recommendations:
+                    type: integer
+        "400":
+          description: ZIP inválido o incompleto
+        "401":
+          description: Token inválido
+        "413":
+          description: El archivo supera 20MB
+components:
+  schemas:
+    Film:
+      type: object
+      properties:
+        tmdbId:
+          type: integer
+          nullable: true
+          example: 1084199
+        title:
+          type: string
+          example: Companion
+        year:
+          type: integer
+          nullable: true
+          example: 2025
+        rating:
+          type: number
+          nullable: true
+          example: 5
+        watchedOn:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-10-28"
+        posterUrl:
+          type: string
+          nullable: true
+    Recommendation:
+      type: object
+      properties:
+        tmdbId:
+          type: integer
+          example: 496243
+        title:
+          type: string
+          example: Parasite
+        year:
+          type: integer
+          nullable: true
+          example: 2019
+        posterUrl:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          example: Porque te encantó Companion
+        country:
+          type: string
+          example: VE
+        providers:
+          type: array
+          description: Plataformas de streaming por suscripción en ese país, según TMDB
+          items:
+            type: string
+        netflixId:
+          type: string
+          nullable: true
+          description: Reservado. Hoy siempre es null.
