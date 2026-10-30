@@ -1,6 +1,6 @@
 # 002 — Netflix availability in recommendations
 
-- **Status:** In progress
+- **Status:** Delivered
 - **Plan:** library-sync ([README](README.md))
 - **Date:** 2026-10-30
 - **Author role:** SYS
@@ -29,9 +29,9 @@ Code, schema change, updated OpenAPI contract, deployed service, refreshed recom
 
 | Milestone | Est. hours | Started | Finished | Actual hours | Notes |
 |-----------|-----------|---------|----------|--------------|-------|
-| JustWatch and TMDB availability | 1.5 | | | | |
-| Contract, docs and tests | 0.5 | | | | |
-| Deploy and verification | 0.5 | | | | |
+| JustWatch and TMDB availability | 1.5 | 2026-10-30 15:44 -0400 | 2026-10-30 15:45 -0400 | 0.02 | Executed together with the next milestone; the time is the shared total |
+| Contract, docs and tests | 0.5 | 2026-10-30 15:44 -0400 | 2026-10-30 15:45 -0400 | 0.02 | Shared total |
+| Deploy and verification | 0.5 | 2026-10-30 15:45 -0400 | 2026-10-30 15:47 -0400 | 0.03 | Times from the Dokploy deployment and the import finish in `/api/health` |
 
 ## Changes
 
