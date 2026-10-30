@@ -39,7 +39,7 @@ paths:
     get:
       tags:
         - Library
-      summary: Recomendaciones listas para mostrar
+      summary: Recomendaciones disponibles en Netflix Venezuela o Estados Unidos
       security:
         - bearerAuth: []
       responses:
@@ -184,15 +184,15 @@ components:
         reason:
           type: string
           example: Porque te encantó Companion
-        country:
-          type: string
-          example: VE
-        providers:
+        netflixCountries:
           type: array
-          description: Plataformas de streaming por suscripción en ese país, según TMDB
+          description: Países donde está en Netflix. Nunca viene vacío.
           items:
             type: string
+            enum: [VE, US]
+          example: [VE, US]
         netflixId:
           type: string
           nullable: true
-          description: Reservado. Hoy siempre es null.
+          description: ID de título de Netflix. Es null si la disponibilidad vino de TMDB.
+          example: "80175798"

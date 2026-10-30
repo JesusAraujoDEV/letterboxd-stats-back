@@ -1,9 +1,11 @@
 const { query, withTransaction } = require("../utils/db");
 const { mapWithConcurrency } = require("../utils/concurrency");
-const { fetchMovieRecommendations, fetchStreamingProviders } = require("../utils/tmdbHelper");
+const { fetchMovieRecommendations } = require("../utils/tmdbHelper");
+const { fetchNetflixAvailability } = require("./netflixAvailability.service");
 const { rankCandidates } = require("./recommendationRanking.service");
 
 const MAX_SEEDS = 20;
+const MAX_RECOMMENDATIONS = 30;
 
 const loadSeeds = async () => {
   const { rows } = await query(
@@ -24,37 +26,45 @@ const loadSeenIds = async () => {
   return new Set(rows.map((row) => row.tmdb_id));
 };
 
-const replaceRecommendations = (items, country) =>
+const replaceRecommendations = (items) =>
   withTransaction(async (client) => {
     await client.query("DELETE FROM letterboxd.recommendations");
     for (const item of items) {
       await client.query(
         `INSERT INTO letterboxd.recommendations
-           (tmdb_id, title, year, poster_path, reason, score, country, providers)
+           (tmdb_id, title, year, poster_path, reason, score, netflix_countries, netflix_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [item.tmdbId, item.title, item.year, item.posterPath, item.reason, item.score, country, item.providers],
+        [
+          item.tmdbId,
+          item.title,
+          item.year,
+          item.posterPath,
+          item.reason,
+          item.score,
+          item.netflixCountries,
+          item.netflixId,
+        ],
       );
     }
   });
 
 const refreshRecommendations = async () => {
-  const country = process.env.RECOMMENDATIONS_COUNTRY || "VE";
   const [seeds, seenIds] = await Promise.all([loadSeeds(), loadSeenIds()]);
   const seedResults = await mapWithConcurrency(seeds, 4, async (seed) => ({
     seed,
     results: await fetchMovieRecommendations(seed.tmdb_id),
   }));
 
-  const ranked = rankCandidates(seedResults, seenIds);
-  if (!ranked.length) {
-    throw new Error("TMDB no devolvió recomendaciones; se conservan las anteriores.");
+  const candidates = await mapWithConcurrency(rankCandidates(seedResults, seenIds), 4, async (item) => ({
+    ...item,
+    ...(await fetchNetflixAvailability(item)),
+  }));
+  const items = candidates.filter((item) => item.netflixCountries.length).slice(0, MAX_RECOMMENDATIONS);
+  if (!items.length) {
+    throw new Error("Ninguna recomendación está en Netflix; se conservan las anteriores.");
   }
 
-  const items = await mapWithConcurrency(ranked, 4, async (item) => ({
-    ...item,
-    providers: await fetchStreamingProviders(item.tmdbId, country),
-  }));
-  await replaceRecommendations(items, country);
+  await replaceRecommendations(items);
   return items.length;
 };
 

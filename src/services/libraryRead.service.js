@@ -30,7 +30,7 @@ const listWatchlist = () => listFilmsWhere("f.in_watchlist");
 
 const listRecommendations = async () => {
   const { rows } = await query(
-    `SELECT tmdb_id, title, year, poster_path, reason, country, providers, netflix_id
+    `SELECT tmdb_id, title, year, poster_path, reason, netflix_countries, netflix_id
      FROM letterboxd.recommendations ORDER BY score DESC, title`,
   );
   return rows.map((row) => ({
@@ -39,8 +39,7 @@ const listRecommendations = async () => {
     year: row.year,
     posterUrl: toPosterUrl(row.poster_path),
     reason: row.reason,
-    country: row.country,
-    providers: row.providers,
+    netflixCountries: row.netflix_countries,
     netflixId: row.netflix_id,
   }));
 };

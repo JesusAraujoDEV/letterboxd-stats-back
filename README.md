@@ -57,11 +57,11 @@
 | `POST` | `/api/upload-stats` | Sube un ZIP exportado desde Letterboxd y devuelve el set completo de estadísticas calculadas. |
 | `GET` | `/api/films` | Películas vistas de la biblioteca personal. Requiere token. |
 | `GET` | `/api/watchlist` | Películas pendientes, con el mismo formato. Requiere token. |
-| `GET` | `/api/recommendations` | Recomendaciones con motivo y disponibilidad por país. Requiere token. |
+| `GET` | `/api/recommendations` | Recomendaciones en Netflix Venezuela o Estados Unidos, con motivo, países e ID de Netflix. Requiere token. |
 | `GET` | `/api/health` | Fecha de la última actualización y si la última corrida falló. Requiere token. |
 | `POST` | `/api/library/import` | Importa un ZIP recién exportado como foto completa de la biblioteca. Requiere token. |
 
-La biblioteca usa `Authorization: Bearer <LIBRARY_API_TOKEN>` y necesita `DATABASE_URL`, `LETTERBOXD_USERNAME` y, opcionalmente, `RECOMMENDATIONS_COUNTRY` (por defecto `VE`). El feed público se lee a diario a las 03:00 de Caracas. Solo agrega actividad nueva: los cambios en calificaciones antiguas, los borrados y la watchlist se actualizan con el siguiente ZIP.
+La biblioteca usa `Authorization: Bearer <LIBRARY_API_TOKEN>` y necesita `DATABASE_URL` y `LETTERBOXD_USERNAME`. La disponibilidad en Netflix sale de JustWatch, con TMDB como respaldo. El feed público se lee a diario a las 03:00 de Caracas. Solo agrega actividad nueva: los cambios en calificaciones antiguas, los borrados y la watchlist se actualizan con el siguiente ZIP.
 
 ### `POST /api/upload-stats`
 

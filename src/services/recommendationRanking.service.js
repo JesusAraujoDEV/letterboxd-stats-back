@@ -1,4 +1,4 @@
-const MAX_RECOMMENDATIONS = 30;
+const MAX_CANDIDATES = 150;
 
 // `seedResults`: pares { seed, results } con las semillas ya ordenadas de mejor a peor.
 const rankCandidates = (seedResults, seenTmdbIds) => {
@@ -24,7 +24,7 @@ const rankCandidates = (seedResults, seenTmdbIds) => {
       });
   });
 
-  return [...candidates.values()].sort((a, b) => b.score - a.score).slice(0, MAX_RECOMMENDATIONS);
+  return [...candidates.values()].sort((a, b) => b.score - a.score).slice(0, MAX_CANDIDATES);
 };
 
 module.exports = { rankCandidates };

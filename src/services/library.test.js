@@ -4,7 +4,9 @@ const { parseFeed } = require("./feedParser.service");
 const { buildSnapshot } = require("./zipSnapshot.service");
 const { rankCandidates } = require("./recommendationRanking.service");
 const { isSyncDue } = require("./syncScheduler.service");
+const { parseJustWatchNode, findJustWatchMatch } = require("./netflixAvailability.service");
 const { parseFilmPage } = require("../utils/letterboxdHelper");
+const { netflixCountriesFromProviders } = require("../utils/tmdbHelper");
 
 const FEED = `<?xml version='1.0'?><rss xmlns:letterboxd="https://letterboxd.com" xmlns:tmdb="https://themoviedb.org"><channel>
 <item><title>Newer</title><link>https://letterboxd.com/u/film/companion-2025/1/</link>
@@ -75,6 +77,39 @@ test("isSyncDue corre a la hora fijada y recupera corridas perdidas", () => {
   assert.equal(isSyncDue(at("2026-10-30T07:30:00Z"), at("2026-10-30T07:05:00Z")), false);
   assert.equal(isSyncDue(at("2026-10-30T12:00:00Z"), at("2026-10-30T07:05:00Z")), false);
   assert.equal(isSyncDue(at("2026-10-30T12:00:00Z"), at("2026-10-29T09:00:00Z")), true);
+});
+
+test("parseJustWatchNode detecta Netflix por país e ignora otras ofertas", () => {
+  const netflix = {
+    monetizationType: "FLATRATE",
+    standardWebURL: "https://www.netflix.com/title/80175798",
+    package: { technicalName: "netflix" },
+  };
+  const rental = { monetizationType: "RENT", standardWebURL: "https://x.test", package: { technicalName: "netflix" } };
+  const other = { monetizationType: "FLATRATE", standardWebURL: "https://hulu.test", package: { technicalName: "hulu" } };
+
+  assert.deepEqual(parseJustWatchNode({ ve: [netflix], us: [netflix] }), {
+    netflixCountries: ["VE", "US"],
+    netflixId: "80175798",
+  });
+  assert.deepEqual(parseJustWatchNode({ ve: [], us: [other, netflix] }).netflixCountries, ["US"]);
+  assert.deepEqual(parseJustWatchNode({ ve: [rental], us: [other] }), { netflixCountries: [], netflixId: null });
+});
+
+test("findJustWatchMatch solo acepta el mismo tmdbId", () => {
+  const nodes = [{ content: { externalIds: { tmdbId: "51209" } } }, { content: { externalIds: { tmdbId: "398978" } } }];
+  assert.equal(findJustWatchMatch(nodes, 398978), nodes[1]);
+  assert.equal(findJustWatchMatch(nodes, 1), undefined);
+});
+
+test("netflixCountriesFromProviders usa los proveedores de suscripción de Netflix", () => {
+  const results = {
+    VE: { flatrate: [{ provider_id: 8 }] },
+    US: { flatrate: [{ provider_id: 15 }], rent: [{ provider_id: 8 }] },
+  };
+  assert.deepEqual(netflixCountriesFromProviders(results), ["VE"]);
+  assert.deepEqual(netflixCountriesFromProviders({ US: { flatrate: [{ provider_id: 1796 }] } }), ["US"]);
+  assert.deepEqual(netflixCountriesFromProviders(null), []);
 });
 
 test("parseFilmPage extrae slug y TMDB de la URL final y el HTML", () => {

@@ -79,10 +79,18 @@ const fetchMovieRecommendations = async (id) => {
   return payload && payload.results ? payload.results : [];
 };
 
-const fetchStreamingProviders = async (id, country) => {
+const NETFLIX_PROVIDER_IDS = new Set([8, 1796]);
+
+const netflixCountriesFromProviders = (results) =>
+  ["VE", "US"].filter((country) => {
+    const region = results ? results[country] : null;
+    const flatrate = region && region.flatrate ? region.flatrate : [];
+    return flatrate.some((provider) => NETFLIX_PROVIDER_IDS.has(provider.provider_id));
+  });
+
+const fetchNetflixCountries = async (id) => {
   const payload = await fetchTmdbJson(`https://api.themoviedb.org/3/movie/${id}/watch/providers`);
-  const region = payload && payload.results ? payload.results[country] : null;
-  return region && region.flatrate ? region.flatrate.map((p) => p.provider_name) : [];
+  return netflixCountriesFromProviders(payload ? payload.results : null);
 };
 
 module.exports = {
@@ -90,5 +98,6 @@ module.exports = {
   fetchMovieDetailsByTitleYear,
   fetchTmdbTitle,
   fetchMovieRecommendations,
-  fetchStreamingProviders,
+  netflixCountriesFromProviders,
+  fetchNetflixCountries,
 };

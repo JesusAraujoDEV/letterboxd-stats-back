@@ -32,10 +32,14 @@ CREATE TABLE IF NOT EXISTS letterboxd.recommendations (
   poster_path text,
   reason text NOT NULL,
   score numeric NOT NULL,
-  country text NOT NULL,
-  providers text[] NOT NULL DEFAULT '{}',
+  netflix_countries text[] NOT NULL DEFAULT '{}',
   netflix_id text
 );
+
+ALTER TABLE letterboxd.recommendations
+  DROP COLUMN IF EXISTS country,
+  DROP COLUMN IF EXISTS providers,
+  ADD COLUMN IF NOT EXISTS netflix_countries text[] NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS letterboxd.sync_runs (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
